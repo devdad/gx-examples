@@ -23,6 +23,14 @@ Some of the later ones (json, enet, SDL3, cimgui, clay) bind external C librarie
 gx 45_json.gx -I path/to/gx/modules -o json
 ```
 
+## Coming from Python or JavaScript
+
+More of GX will feel familiar than you might expect. String interpolation is an f-string with the letter dropped: `"hello {name}"`. A `map<str, i32>` is your dict or object. `for (var x in items)` reads the way you already write loops, and a `where` filter on it does what the condition in a comprehension does. Semicolons are optional. You can go a long way before the systems side of the language asks anything of you.
+
+The real differences are three, and all of them are deliberate. First, GX compiles to a native executable: there is a build step, and types are checked before anything runs, so a whole class of errors you would meet at runtime in Python shows up while compiling instead. Second, there is no garbage collector. Most code never notices, but when something allocates, like `collect`, freeing it is your job, and the examples show where. Third, there are no exceptions. A function that can fail returns a value that says so, and you check it at the call site; `43_errors.gx` shows the patterns that replace try/except.
+
+The early examples assume nothing. Read 01 through 13 in order and you will have the whole core of the language; the compile-time system (29 to 35) is where GX becomes something Python and JavaScript have no equivalent for.
+
 ## Demos
 
 The `demos` folder holds small complete programs, games and graphics, built on sokol and raylib. Same rule as above, point `-I` at the modules folder:

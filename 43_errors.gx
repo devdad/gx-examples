@@ -1,0 +1,86 @@
+// 43_errors.gx
+//
+// GX has no exceptions, and that is a decision, not a gap. An exception
+// is invisible control flow: any call might jump out of your function,
+// and the call site gives no hint which ones. The machinery that makes
+// it work, stack unwinding, is exactly the kind of hidden cost GX
+// exists to avoid. So errors in GX are values. A function that can
+// fail says so in its signature, returns a bool or an error enum, and
+// hands the result out through an out parameter. The caller checks,
+// right there, in code you can read top to bottom.
+//
+// If you come from Python or JavaScript: everywhere you would reach
+// for try/except, you check a return value instead. A little more
+// typing at the call site, far fewer surprises everywhere else.
+//
+// Panics are the other half of the story. Indexing out of bounds
+// panics (27_bounds_check.gx shows it), because that is a bug, not a
+// condition your program should handle. The rule of thumb: expected
+// failure is a value you check, impossible situations panic.
+
+// --- Pattern 1: bool return, value through an out param ---
+// The GX version of Python's int(s) with its ValueError: the bool says
+// whether the parse worked, the out param carries the number.
+fn parse_i32:bool(s: str, out result: i32) {
+    if (s.len == 0) { return false }
+    var value:i32 = 0
+    var i:i64 = 0
+    var negative:bool = false
+    if (s[0] == 45) {              // leading '-'
+        negative = true
+        i = 1
+        if (s.len == 1) { return false }
+    }
+    while (i < s.len) {
+        var c:i32 = (i32)s[i]
+        if (c < 48 || c > 57) { return false }   // outside '0'..'9'
+        value = value * 10 + (c - 48)
+        i = i + 1
+    }
+    if (negative) { value = 0 - value }
+    *result = value
+    return true
+}
+
+// --- Pattern 2: an error enum, when "failed" needs more than one flavor ---
+enum LoadError {
+    None
+    NotFound
+    Corrupt
+}
+
+fn load_level:LoadError(id: i32) {
+    if (id < 0)   { return NotFound }
+    if (id > 100) { return Corrupt }
+    return None
+}
+
+fn main() {
+    // Pattern 1 in use: check, then trust the value.
+    var n:i32 = 0
+    if (parse_i32("1984", &n)) {
+        print("parsed: {n}\n")
+    }
+    if (!parse_i32("19x4", &n)) {
+        print("'19x4' is not a number\n")
+    }
+    if (parse_i32("-42", &n)) {
+        print("parsed: {n}\n")
+    }
+
+    // Pattern 2 in use: match makes every failure case visible,
+    // and handling them all is right there to see.
+    var err = load_level(7)
+    match (err) {
+        None:     print("level 7 loaded\n")
+        NotFound: print("level 7 missing\n")
+        Corrupt:  print("level 7 damaged\n")
+    }
+
+    err = load_level(-1)
+    match (err) {
+        None:     print("level -1 loaded\n")
+        NotFound: print("level -1 missing\n")
+        Corrupt:  print("level -1 damaged\n")
+    }
+}
