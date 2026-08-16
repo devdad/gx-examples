@@ -17,11 +17,13 @@ gx 02_variables.gx -o variables
 
 That is the whole workflow. Most numbered examples are self contained and print to the console.
 
-Some of the later ones (json, enet, SDL3, cimgui, clay) bind external C libraries through modules that ship with the GX release. When a file starts with an `import`, build it with the modules folder on the include path:
+Some of the later ones (json, enet, SDL3, cimgui, clay) bind external C libraries through modules that ship with the GX release. The compiler finds them on its own, next to the `gx` binary, so these build the same way:
 
 ```
-gx 45_json.gx -I path/to/gx/modules -o json
+gx 45_json.gx -o json
 ```
+
+If you keep modules somewhere unusual, point at them with `-I path/to/modules`.
 
 ## Coming from Python or JavaScript
 
@@ -33,10 +35,10 @@ The early examples assume nothing. Read 01 through 13 in order and you will have
 
 ## Demos
 
-The `demos` folder holds small complete programs, games and graphics, built on sokol and raylib. Same rule as above, point `-I` at the modules folder:
+The `demos` folder holds small complete programs, games and graphics, built on sokol and raylib:
 
 ```
-gx demos/sokol/snake.gx -I path/to/gx/modules -o snake
+gx demos/sokol/snake.gx -o snake
 ```
 
 The `*_web.gx` files are browser builds of the same demos. GX has a JS backend, so the playground on gxlang.org runs these without installing anything.
