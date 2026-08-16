@@ -1,9 +1,17 @@
 // 04_control_flow.gx
 //
 // if, elif, else, while, and the for loop in its three forms: a range,
-// a for-each over an array, and a for-each with a where filter. collect
-// builds a new array straight out of a loop. That one allocates, which is
-// why the code frees it at the end. Nothing else here touches the heap.
+// a for-each over an array, and a for-each filtered with where.
+//
+// where and collect are the two things here you will not find in C.
+// I took them from MAXScript, where they make everyday array work
+// short and readable, and kept that while making them compile to the
+// plain loop you would have written by hand. where filters values as
+// the loop runs, no allocation, no cost. collect turns a loop into an
+// array builder: it keeps every value that passes the filter and hands
+// you a new array. That is the one construct in this file that touches
+// the heap, and the array is yours, so you free it when you are done.
+// There is no garbage collector coming to do it for you.
 
 fn main() {
     // --- If / elif / else ---
@@ -48,23 +56,25 @@ fn main() {
         print("  even={n}\n");
     }
 
-    // --- Collect: build array from loop ---
+    // --- Collect: build an array from a loop ---
+    // One line replaces the usual count-allocate-fill dance.
     var evens = for (n in nums) where (n % 2 == 0) collect n;
     print("\nCollected evens ({evens.len()}):");
-    for (i = 0:3) {
-        print(" {evens.at(i)}");
+    for (var e in evens) {
+        print(" {e}");
     }
 
     print("\n");
 
-    // Collect with transform
+    // The collected expression can be any transform, not just the value.
     var doubled = for (n in nums) where (n <= 4) collect n * 10;
     print("Doubled small ({doubled.len()}):");
-    for (i = 0:3) {
-        print(" {doubled.at(i)}");
+    for (var d in doubled) {
+        print(" {d}");
     }
     print("\n");
 
+    // collect allocated these, so they are ours to release.
     evens.free();
     doubled.free();
 }
