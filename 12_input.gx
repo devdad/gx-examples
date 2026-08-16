@@ -1,0 +1,17 @@
+// 12_input.gx
+//
+// input() reads a line from stdin and hands it back as a str. Pass a
+// prompt string or don't.
+
+fn main() {
+    var name:str = input("What is your name? ");
+    print("Hello, {name}!\n");
+
+    var color:str = input("Favorite color? ");
+    print("{name} likes {color}\n");
+
+    // input() with no prompt
+    print("Type something: ");
+    var line:str = input();
+    print("You said: {line}\n");
+}

@@ -1,0 +1,77 @@
+// input.gx
+//
+// Keyboard and mouse events on sokol. Left or right click changes the
+// clear color, Escape quits. About as small as an event loop gets.
+@backend("llvm-clang")
+import sokol.gfx
+import sokol.app
+import sokol.glue
+
+// Global state for background color
+var g_r:f32 = 0.2;
+var g_g:f32 = 0.2;
+var g_b:f32 = 0.2;
+
+@c_abi
+fn init() {
+    var gfx_desc:sg_desc;
+    gfx_desc.environment = sglue_environment();
+    sg_setup(&gfx_desc);
+    print("Input demo initialized. Press keys or click mouse!\n");
+}
+
+@c_abi
+fn frame() {
+    var pass:sg_pass;
+    pass.action.colors[0].load_action = 1;  // SG_LOADACTION_CLEAR
+    pass.action.colors[0].clear_value.r = g_r;
+    pass.action.colors[0].clear_value.g = g_g;
+    pass.action.colors[0].clear_value.b = g_b;
+    pass.action.colors[0].clear_value.a = 1.0;
+    pass.swapchain = sglue_swapchain();
+    
+    sg_begin_pass(&pass);
+    sg_end_pass();
+    sg_commit();
+}
+
+@c_abi
+fn event(ev: const *sapp_event) {
+    if (ev.type == EVENTTYPE_KEY_DOWN) {
+        if (ev.key_code == KEYCODE_ESCAPE) {
+            sapp_quit();
+        }
+        print("Key pressed!\n");
+    }
+    elif (ev.type == EVENTTYPE_MOUSE_DOWN) {
+        if (ev.mouse_button == MOUSEBUTTON_LEFT) {
+            g_r = 0.8; g_g = 0.2; g_b = 0.2;
+        }
+        elif (ev.mouse_button == MOUSEBUTTON_RIGHT) {
+            g_r = 0.2; g_g = 0.8; g_b = 0.2;
+        }
+        print("Mouse down!\n");
+    }
+    elif (ev.type == EVENTTYPE_MOUSE_MOVE) {
+        // print("Mouse move: " + ev.mouse_x.str() + ", " + ev.mouse_y.str() + "\n");
+    }
+}
+
+@c_abi
+fn cleanup() {
+    sg_shutdown();
+}
+
+fn main() {
+    var desc:sapp_desc;
+    desc.init_cb = init;
+    desc.frame_cb = frame;
+    desc.event_cb = event;
+    desc.cleanup_cb = cleanup;
+    desc.width = 640;
+    desc.height = 480;
+    desc.sample_count = 1;
+    desc.swap_interval = 1;
+    desc.window_title = "GX Sokol Input Demo";
+    sapp_run(&desc);
+}

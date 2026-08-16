@@ -1,0 +1,32 @@
+// 22_func_ptr.gx
+//
+// Function pointers with a readable type: fn(i32):i32 instead of C's
+// inside-out declarator syntax. Assign a function, pass it as an
+// argument, call through it. Underneath it is still a plain C function
+// pointer, no closures, no captured state.
+
+fn add:i32(a:i32, b:i32) {
+    return a + b;
+}
+
+fn negate:i32(x:i32) {
+    return 0 - x;
+}
+
+fn apply:i32(f:fn(i32):i32, val:i32) {
+    return f(val);
+}
+
+fn main() {
+    // Valid: assign function matching signature
+    var op:fn(i32, i32):i32 = add;
+    print("add(3,4) = {op(3, 4)}\n");
+
+    // Valid: pass function pointer as argument
+    var result:i32 = apply(negate, 42);
+    print("negate(42) = {result}\n");
+
+    // Call through function pointer
+    var f:fn(i32):i32 = negate;
+    print("f(10) = {f(10)}\n");
+}

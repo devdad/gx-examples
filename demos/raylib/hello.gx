@@ -1,0 +1,49 @@
+// hello.gx
+//
+// First contact with raylib from GX. A window, some text, a few shapes.
+// Raylib's Vector2 is an alias for GX's built-in vec2, so vector
+// literals and operator arithmetic work straight through the binding.
+@backend("llvm-clang")
+import raylib
+
+fn main() {
+    InitWindow(800, 600, "GX + Raylib")
+    SetTargetFPS(60)
+
+    while (!WindowShouldClose()) {
+        if (IsKeyPressed(KEY_F)) {
+            ToggleFullscreen()
+        }
+
+        BeginDrawing()
+        ClearBackground(RAYWHITE)
+
+        DrawText("Hello from GX + Raylib!", 220, 60, 32, DARKGRAY)
+        DrawText("Built-in vec2/3/4 with operator overloading", 180, 110, 18, GRAY)
+
+        // GX vec2 literals work directly as Vector2
+        DrawRectangle(80, 180, 220, 120, RED)
+        DrawCircleV(vec2{460.0, 240.0}, 70.0, BLUE)
+
+        // vec2 math: operator overloading
+        var a = vec2{640.0, 180.0}
+        var b = vec2{580.0, 300.0}
+        var c = vec2{700.0, 300.0}
+        DrawTriangle(a, b, c, GREEN)
+
+        // vec2 arithmetic works naturally
+        var center = vec2{400.0, 450.0}
+        var offset = vec2{70.0, 0.0}
+
+        DrawCircleV(center - offset, 28.0, ORANGE)
+        DrawCircleV(center, 28.0, PURPLE)
+        DrawCircleV(center + offset, 28.0, SKYBLUE)
+
+        DrawFPS(10, 10)
+        DrawText("Press F for fullscreen", 10, 570, 18, GRAY)
+
+        EndDrawing()
+    }
+
+    CloseWindow()
+}

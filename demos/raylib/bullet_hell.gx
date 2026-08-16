@@ -1,0 +1,250 @@
+// bullet_hell.gx
+//
+// A bullet hell spawner pushed to 100,000 bullets, ported from a
+// raylib shapes example. The pool is one fixed global array of
+// structs, and Enter flips between textured and circle drawing so
+// you can compare the two on your machine. Controls are listed on
+// screen.
+@backend("llvm")
+import raylib
+import math.scalar
+
+const MAX_BULLETS = 100000
+
+struct Bullet {
+    position: Vector2
+    acceleration: Vector2
+    disabled: bool
+    color: Color
+}
+
+// Global bullet pool - fixed size array (no dynamic allocation)
+var g_bullets: Bullet[100000]
+
+fn main() {
+    var screen_width: i32 = 800
+    var screen_height: i32 = 600
+
+    InitWindow(screen_width, screen_height, "raylib [shapes] example - bullet hell")
+
+    var bullet_count: i32 = 0
+    var bullet_disabled_count: i32 = 0
+    var bullet_radius: i32 = 10
+    var bullet_speed: f32 = 3.0
+    var bullet_rows: i32 = 6
+
+    // Spawner state
+    var base_direction: f32 = 0.0
+    var angle_increment: i32 = 5
+    var spawn_cooldown: f32 = 2.0
+    var spawn_cooldown_timer: f32 = 2.0
+
+    // Magic circle animation
+    var magic_circle_rotation: f32 = 0.0
+
+    // Pre-rendered bullet texture for performance
+    var bullet_texture = LoadRenderTexture(24, 24)
+    BeginTextureMode(bullet_texture)
+        DrawCircle(12, 12, 10.0, WHITE)
+        DrawCircleLines(12, 12, 10.0, BLACK)
+    EndTextureMode()
+
+    var draw_perf_mode: bool = true
+
+    // Colors array (can't easily use const arrays in GX, use locals)
+    var color_a = RED
+    var color_b = BLUE
+
+    SetTargetFPS(60)
+
+    while (!WindowShouldClose()) {
+        // ----- Update -----
+
+        // Reset ring buffer when full
+        if (bullet_count >= MAX_BULLETS) {
+            bullet_count = 0
+            bullet_disabled_count = 0
+        }
+
+        spawn_cooldown_timer = spawn_cooldown_timer - 1.0
+        if (spawn_cooldown_timer < 0.0) {
+            spawn_cooldown_timer = spawn_cooldown
+
+            // Spawn one bullet per row, distributed around 360 degrees
+            var degrees_per_row: f32 = 360.0 / (bullet_rows * 1.0)
+            var row: i32 = 0
+            while (row < bullet_rows) {
+                if (bullet_count < MAX_BULLETS) {
+                    var pos: Vector2
+                    pos.x = screen_width * 0.5
+                    pos.y = screen_height * 0.5
+                    g_bullets[bullet_count].position = pos
+                    g_bullets[bullet_count].disabled = false
+
+                    if ((row % 2) == 0) {
+                        g_bullets[bullet_count].color = color_a
+                    } else {
+                        g_bullets[bullet_count].color = color_b
+                    }
+
+                    var bullet_direction: f32 = base_direction + (degrees_per_row * (row * 1.0))
+                    var rad: f32 = radians(bullet_direction)
+
+                    var acc: Vector2
+                    acc.x = bullet_speed * cosf(rad)
+                    acc.y = bullet_speed * sinf(rad)
+                    g_bullets[bullet_count].acceleration = acc
+
+                    bullet_count = bullet_count + 1
+                }
+                row = row + 1
+            }
+
+            base_direction = base_direction + (angle_increment * 1.0)
+        }
+
+        // Update bullet positions
+        var i: i32 = 0
+        while (i < bullet_count) {
+            if (!g_bullets[i].disabled) {
+                g_bullets[i].position.x = g_bullets[i].position.x + g_bullets[i].acceleration.x
+                g_bullets[i].position.y = g_bullets[i].position.y + g_bullets[i].acceleration.y
+
+                var off: f32 = bullet_radius * 2.0
+                if (g_bullets[i].position.x < (0.0 - off)) {
+                    g_bullets[i].disabled = true
+                    bullet_disabled_count = bullet_disabled_count + 1
+                }
+                if (g_bullets[i].position.x > (screen_width + off)) {
+                    if (!g_bullets[i].disabled) {
+                        g_bullets[i].disabled = true
+                        bullet_disabled_count = bullet_disabled_count + 1
+                    }
+                }
+                if (g_bullets[i].position.y < (0.0 - off)) {
+                    if (!g_bullets[i].disabled) {
+                        g_bullets[i].disabled = true
+                        bullet_disabled_count = bullet_disabled_count + 1
+                    }
+                }
+                if (g_bullets[i].position.y > (screen_height + off)) {
+                    if (!g_bullets[i].disabled) {
+                        g_bullets[i].disabled = true
+                        bullet_disabled_count = bullet_disabled_count + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+
+        // ----- Input -----
+        if (IsKeyPressed(KEY_RIGHT)) {
+            if (bullet_rows < 359) { bullet_rows = bullet_rows + 1 }
+        }
+        if (IsKeyPressed(KEY_D)) {
+            if (bullet_rows < 359) { bullet_rows = bullet_rows + 1 }
+        }
+        if (IsKeyPressed(KEY_LEFT)) {
+            if (bullet_rows > 1) { bullet_rows = bullet_rows - 1 }
+        }
+        if (IsKeyPressed(KEY_A)) {
+            if (bullet_rows > 1) { bullet_rows = bullet_rows - 1 }
+        }
+        if (IsKeyPressed(KEY_UP)) { bullet_speed = bullet_speed + 0.25 }
+        if (IsKeyPressed(KEY_W)) { bullet_speed = bullet_speed + 0.25 }
+        if (IsKeyPressed(KEY_DOWN)) {
+            if (bullet_speed > 0.5) { bullet_speed = bullet_speed - 0.25 }
+        }
+        if (IsKeyPressed(KEY_S)) {
+            if (bullet_speed > 0.5) { bullet_speed = bullet_speed - 0.25 }
+        }
+        if (IsKeyPressed(KEY_Z)) {
+            if (spawn_cooldown > 1.0) { spawn_cooldown = spawn_cooldown - 1.0 }
+        }
+        if (IsKeyPressed(KEY_X)) { spawn_cooldown = spawn_cooldown + 1.0 }
+        if (IsKeyPressed(KEY_ENTER)) { draw_perf_mode = !draw_perf_mode }
+        if (IsKeyDown(KEY_SPACE)) {
+            angle_increment = angle_increment + 1
+            angle_increment = angle_increment % 360
+        }
+        if (IsKeyPressed(KEY_C)) {
+            bullet_count = 0
+            bullet_disabled_count = 0
+        }
+
+        // ----- Draw -----
+        BeginDrawing()
+        ClearBackground(RAYWHITE)
+
+        // Magic circle
+        magic_circle_rotation = magic_circle_rotation + 1.0
+        var rect: Rectangle
+        rect.x = screen_width * 0.5
+        rect.y = screen_height * 0.5
+        rect.width = 120.0
+        rect.height = 120.0
+        var origin: Vector2
+        origin.x = 60.0
+        origin.y = 60.0
+        DrawRectanglePro(rect, origin, magic_circle_rotation, PURPLE)
+        DrawRectanglePro(rect, origin, magic_circle_rotation + 45.0, PURPLE)
+        DrawCircleLines(screen_width / 2, screen_height / 2, 70.0, BLACK)
+        DrawCircleLines(screen_width / 2, screen_height / 2, 50.0, BLACK)
+        DrawCircleLines(screen_width / 2, screen_height / 2, 30.0, BLACK)
+
+        // Draw bullets
+        if (draw_perf_mode) {
+            var tw: f32 = 12.0
+            var th: f32 = 12.0
+            var j: i32 = 0
+            while (j < bullet_count) {
+                if (!g_bullets[j].disabled) {
+                    var fx: f32 = g_bullets[j].position.x - tw
+                    var fy: f32 = g_bullets[j].position.y - th
+                    DrawTextureV(bullet_texture.texture, vec2{fx, fy}, g_bullets[j].color)
+                }
+                j = j + 1
+            }
+        } else {
+            var j: i32 = 0
+            while (j < bullet_count) {
+                if (!g_bullets[j].disabled) {
+                    DrawCircleV(g_bullets[j].position, bullet_radius * 1.0, g_bullets[j].color)
+                    DrawCircleLinesV(g_bullets[j].position, bullet_radius * 1.0, BLACK)
+                }
+                j = j + 1
+            }
+        }
+
+        // UI panel background
+        var panel_bg: Color
+        panel_bg.r = 0
+        panel_bg.g = 0
+        panel_bg.b = 0
+        panel_bg.a = 200
+
+        DrawRectangle(10, 10, 280, 150, panel_bg)
+        DrawText("Controls:", 20, 20, 10, LIGHTGRAY)
+        DrawText("- Right/Left or A/D: Change rows number", 40, 40, 10, LIGHTGRAY)
+        DrawText("- Up/Down or W/S: Change bullet speed", 40, 60, 10, LIGHTGRAY)
+        DrawText("- Z or X: Change spawn cooldown", 40, 80, 10, LIGHTGRAY)
+        DrawText("- Space (Hold): Change the angle increment", 40, 100, 10, LIGHTGRAY)
+        DrawText("- Enter: Switch draw method (Performance)", 40, 120, 10, LIGHTGRAY)
+        DrawText("- C: Clear bullets", 40, 140, 10, LIGHTGRAY)
+
+        DrawRectangle(610, 10, 170, 30, panel_bg)
+        if (draw_perf_mode) {
+            DrawText("Draw method: DrawTexture(*)", 620, 20, 10, GREEN)
+        } else {
+            DrawText("Draw method: DrawCircle(*)", 620, 20, 10, RED)
+        }
+
+        DrawRectangle(135, 560, 530, 30, panel_bg)
+        DrawText("[ FPS stats ]", 155, 570, 10, GREEN)
+
+        EndDrawing()
+    }
+
+    UnloadRenderTexture(bullet_texture)
+    CloseWindow()
+}

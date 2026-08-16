@@ -1,0 +1,41 @@
+// 11_bool.gx
+//
+// bool in GX is what it compiles to: 1 or 0. Nothing hidden behind it.
+
+fn main() {
+    var a:bool = true;
+    var b:bool = false;
+
+    print("a = {a}\n");
+    print("b = {b}\n");
+
+    if (a) {
+        print("a is true\n");
+    }
+
+    if (!b) {
+        print("b is false\n");
+    }
+
+    // Boolean logic
+    var c = a && b;
+    var d = a || b;
+    print("true && false = {c}\n");
+    print("true || false = {d}\n");
+
+    // Comparison produces bool
+    var x = 5;
+    var gt = x > 3;
+    print("5 > 3 = {gt}\n");
+
+    // Use in conditions directly
+    var done = false;
+    var count = 0;
+    while (!done) {
+        count = count + 1;
+        if (count == 3) {
+            done = true;
+        }
+    }
+    print("counted to {count}\n");
+}

@@ -1,0 +1,38 @@
+// 31_comptime_for.gx
+//
+// #for runs the loop at compile time. Each iteration is stamped out with
+// the index as a literal, so there is no counter and no branch in the
+// output. The nested version below expands to nine plain statements
+// before the C compiler ever sees them.
+
+fn main() {
+    // Basic #for - unrolls to 5 print calls
+    print("=== Compile-Time Loop Unrolling (#for) ===");
+
+    #for (i=0:5) {
+        print("iteration {i}");
+    }
+
+    // #for with expressions using the loop variable
+    var sum:i32 = 0;
+    #for (i=1:6) {
+        sum += i * i;
+    }
+    print("sum of squares 1..5 = {sum}");
+
+    // Nested #for - generates 3x3 = 9 iterations
+    #for (row=0:3) {
+        #for (col=0:3) {
+            var val:i32 = row * 3 + col;
+            print("  ({row},{col}) = {val}");
+        }
+    }
+
+    // #for with const bounds
+    const N = 4;
+    #for (i=0:N) {
+        print("channel {i}");
+    }
+
+    print("Done!");
+}

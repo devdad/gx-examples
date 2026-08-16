@@ -1,0 +1,44 @@
+// 35_templates.gx
+//
+// #type T declares a type parameter. Each use like Pair<i32> stamps out a
+// separate concrete struct at compile time, so the generated code is the
+// plain C you would have written by hand. No boxing, no vtables.
+
+#type T
+struct Pair {
+    first: T
+    second: T
+}
+
+fn main() {
+    print("=== Compile-Time Templates (Phase 8) ===");
+
+    // Pair<i32> - generates struct Pair_i32 { int32_t first; int32_t second; }
+    var pi: Pair<i32>;
+    pi.first = 10;
+    pi.second = 20;
+    print("Pair<i32>: ({pi.first.str()}, {pi.second.str()})");
+
+    // Pair<i64> - generates struct Pair_i64 { int64_t first; int64_t second; }
+    var pl: Pair<i64>;
+    pl.first = 100;
+    pl.second = 200;
+    print("Pair<i64>: ({pl.first.str()}, {pl.second.str()})");
+
+    var pf: Pair<f32>;
+    pf.first = 100.32;
+    pf.second = 200.32;
+    print("Pair<f32>: ({pf.first.str()}, {pf.second.str()})");
+
+    var ps: Pair<str>;
+    ps.first = "Afan";
+    ps.second = "Olovcic";
+    print("Pair<f32>: ({ps.first.str()}, {ps.second.str()})");
+    {
+        var ps:Pair< str >;
+        ps.first = "Sanela";
+        ps.second = "Gluhovic";
+        print("Pair<f32>: ({ps.first.str()}, {ps.second.str()})");
+    }
+    print("Done!");
+}

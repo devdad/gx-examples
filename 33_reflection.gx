@@ -1,0 +1,52 @@
+// 33_reflection.gx
+//
+// Compile-time reflection. @fields, @field, @field_type and friends answer
+// questions about your types while the compiler still has them in hand.
+// Paired with #for, that is enough to walk a struct's fields or an enum's
+// members with zero runtime type information in the binary.
+
+struct Point {
+    x: f32
+    y: f32
+    z: f32
+}
+
+struct Node {
+    value: i32
+    next: *Node
+}
+
+enum Color { Red  Green  Blue }
+
+fn main() {
+    print("=== Compile-Time Reflection (Phase 6) ===\n");
+
+    // --- Struct field reflection ---
+    print("Point has {@fields(Point)} fields:\n");
+    #for (i=0:@fields(Point)) {
+        print("  {@field(Point, i)}: {@field_type(Point, i)}\n");
+    }
+
+    // --- Field detail intrinsics ---
+    print("Node has {@fields(Node)} fields:");
+    #for (i=0:@fields(Node)) {
+        print("  {@field(Node, i)}: ptr={@field_is_ptr(Node, i)}\n");
+    }
+
+    // --- Enum member reflection ---
+    print("Color has {@members(Color)} members:\n");
+    #for (i=0:@members(Color)) {
+        print("  {@member(Color, i)}");
+    }
+
+    // --- Type meta ---
+    print("@type_kind(Point) = {@type_kind(Point)}\n");
+    print("@type_kind(Color) = {@type_kind(Color)}\n");
+    print("@type_name(Point) = {@type_name(Point)}\n");
+
+    // Note: Function reflection (@params, @param, @return_type) works
+    // but requires multi-file module setup (single-file function
+    // declarations have a pre-existing resolver limitation)
+
+    print("Done!");
+}

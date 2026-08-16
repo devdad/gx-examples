@@ -1,0 +1,44 @@
+// 26_sizeof.gx
+//
+// sizeof works on types and on expressions, and it folds to a constant.
+// Structs keep C-compatible layout, so the number you get here is the
+// number any C code linked against you would see.
+
+struct Point {
+    x: f32
+    y: f32
+}
+
+struct Color {
+    r: u8
+    g: u8
+    b: u8
+    a: u8
+}
+
+fn main() {
+    // sizeof with built-in types
+    print("sizeof(i8)    = {sizeof(i8)}\n");
+    print("sizeof(i16)   = {sizeof(i16)}\n");
+    print("sizeof(i32)   = {sizeof(i32)}\n");
+    print("sizeof(i64)   = {sizeof(i64)}\n");
+    print("sizeof(f32)   = {sizeof(f32)}\n");
+    print("sizeof(f64)   = {sizeof(f64)}\n");
+    print("sizeof(bool)  = {sizeof(bool)}\n");
+
+    // sizeof with user-defined structs (via expression)
+    var p:Point = Point{1.0, 2.0};
+    print("sizeof(Point) = {sizeof(p)}\n");
+
+    var c:Color = Color{255, 128, 0, 255};
+    print("sizeof(Color) = {sizeof(c)}\n");
+
+    // sizeof with vec types
+    print("sizeof(vec2)  = {sizeof(vec2)}\n");
+    print("sizeof(vec3)  = {sizeof(vec3)}\n");
+    print("sizeof(vec4)  = {sizeof(vec4)}\n");
+
+    // sizeof in expressions
+    var arr_size:i64 = 10 * sizeof(i32);
+    print("10 * sizeof(i32) = {arr_size}\n");
+}

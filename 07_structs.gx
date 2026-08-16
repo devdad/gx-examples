@@ -1,0 +1,51 @@
+// 07_structs.gx
+//
+// Structs are plain data with C layout. Methods go in an ex block, and they
+// are just functions that see the fields directly. No classes, no
+// inheritance, no vtables.
+
+struct Player {
+    id:i32
+    name:str
+    score:f32
+}
+
+ex Player {
+    fn greet() {
+        print("Player {name} (id={id}) score={score}\n");
+    }
+
+    fn add_score(points:f32) {
+        score = score + points;
+    }
+}
+
+struct Vec2i {
+    x:i32
+    y:i32
+}
+
+ex Vec2i {
+    fn to_str:str() {
+        return "({x}, {y})";
+    }
+}
+
+fn main() {
+    // Create with initializer
+    var p = Player{1, "Alice", 0.0};
+    p.greet();
+
+    // Modify via extension method
+    p.add_score(100.5);
+    p.add_score(50.0);
+    p.greet();
+
+    // Direct field access
+    p.name = "Bob";
+    print("Renamed to: {p.name}\n");
+
+    // Custom struct with str conversion
+    var pos = Vec2i{10, 20};
+    print("Position: " + pos.to_str() + "\n");
+}

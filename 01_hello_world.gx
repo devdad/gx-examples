@@ -1,0 +1,8 @@
+// 01_hello_world.gx
+//
+// Where everything starts. Build and run:
+//   gx 01_hello_world.gx -o hello
+
+fn main() {
+    print("Hello, world!\n")
+}

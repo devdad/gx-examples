@@ -1,0 +1,81 @@
+// 41_out_params.gx
+//
+// Pointer parameters are read-only unless you say otherwise. 'out' marks
+// the ones a function may write through, so the signature tells you which
+// arguments come back changed. GX functions cannot return pointers, out
+// params are how results leave by reference. In the generated C this is
+// nothing more than const T* versus T*.
+
+struct Point {
+    x: f32
+    y: f32
+}
+
+struct Result {
+    value: f32
+    ok: bool
+}
+
+// 'out' pointer param: function CAN modify what the pointer points to
+fn init_point(out p: *Point, x: f32, y: f32) {
+    p.x = x
+    p.y = y
+}
+
+fn scale_point(out p: *Point, factor: f32) {
+    p.x = p.x * factor
+    p.y = p.y * factor
+}
+
+// No 'out': pointer is read-only (const Point* in C)
+fn print_point(p: *Point) {
+    print("({p.x.str()}, {p.y.str()})\n")
+    // p.x = 99.0  ← compile error: Cannot write through read-only pointer
+}
+
+// out value param: multi-return pattern
+// 'out result:f32' becomes 'float*' in C
+fn divide:bool(a: f32, b: f32, out result: f32) {
+    if (b == 0.0) { return false }
+    *result = a / b
+    return true
+}
+
+// out struct param: fill a result struct
+fn compute(a: f32, b: f32, out r: *Result) {
+    if (b == 0.0) {
+        r.ok = false
+        r.value = 0.0
+    } else {
+        r.ok = true
+        r.value = a / b
+    }
+}
+
+fn main() {
+    // === Out pointer param: init and modify ===
+    var pt = Point{0.0, 0.0}
+    init_point(&pt, 3.0, 4.0)
+    print("After init: ")
+    print_point(&pt)
+
+    scale_point(&pt, 2.0)
+    print("After scale: ")
+    print_point(&pt)
+
+    // === Out value param (multi-return) ===
+    var result: f32 = 0.0
+    if (divide(10.0, 3.0, &result)) {
+        print("10 / 3 = {result.str()}\n")
+    }
+    if (!divide(5.0, 0.0, &result)) {
+        print("Division by zero caught!\n")
+    }
+
+    // === Out struct param ===
+    var r = Result{0.0, false}
+    compute(10.0, 4.0, &r)
+    if (r.ok) {
+        print("10 / 4 = {r.value.str()}\n")
+    }
+}

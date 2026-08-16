@@ -1,0 +1,79 @@
+// 24_union.gx
+//
+// Unions share memory between fields, with the exact C layout. This file
+// uses them three ways: reinterpreting i32 bits as f32, a tagged union
+// built from an enum plus a match, and a color written as one u32 and
+// stored as four bytes. Only one field is valid at a time, and keeping
+// track of which one is your job. That is the deal with unions.
+
+// --- Basic union: type punning ---
+union IntFloat {
+    i: i32
+    f: f32
+}
+
+// --- Tagged union pattern: manual tag + union ---
+enum ValueKind {
+    IntVal
+    FloatVal
+    StrVal
+}
+
+union ValueData {
+    i: i32
+    f: f32
+    s: str
+}
+
+union Actor {
+    id:i32
+    name:str
+}
+
+struct Value {
+    kind: ValueKind
+    data: ValueData
+}
+
+fn print_value(v: Value) {
+    match (v.kind) {
+        IntVal:   print("int: {v.data.i}\n")
+        FloatVal: print("float: {v.data.f}\n")
+        StrVal:   print("str: {v.data.s}\n")
+    }
+}
+
+// --- Color as packed bytes ---
+union Color {
+    rgba: u32
+    bytes: u8[4]
+}
+
+fn main() {
+    // Type punning: reinterpret i32 bits as f32
+    var pun: IntFloat;
+    pun.i = 1065353216;  // IEEE 754 for 1.0f
+    print("int bits: {pun.i}\n");
+    print("as float: {pun.f}\n");
+
+    // Tagged union: variant storage
+    var v1: Value;
+    v1.kind = IntVal;
+    v1.data.i = 42;
+    print_value(v1);
+
+    var v2: Value;
+    v2.kind = FloatVal;
+    v2.data.f = 3.14;
+    print_value(v2);
+
+    var v3: Value;
+    v3.kind = StrVal;
+    v3.data.s = "hello";
+    print_value(v3);
+
+    // Packed color: write as u32, read bytes
+    var c: Color;
+    c.rgba = 0xFF8040FF;
+    print("color rgba: {c.rgba}\n");
+}

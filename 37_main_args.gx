@@ -1,0 +1,18 @@
+// 37_main_args.gx
+//
+// fn main(args: str[]) gets you the command line. args[0] is the program's
+// own path, same convention as C argv, so real input starts at args[1].
+// Build it, then run the exe with a few words after it.
+
+fn main(args: str[]) {
+    // Skip args[0] - it's the program's own path, which differs between
+    // binaries and isn't meaningful user input. Use slice syntax to show
+    // only the user-supplied arguments.
+    var user_arg_count = args.len - 1
+    print("Got {user_arg_count} arguments:\n")
+    var i: i64 = 1
+    while (i < args.len) {
+        print("  - {args[i]}\n")
+        i = i + 1
+    }
+}

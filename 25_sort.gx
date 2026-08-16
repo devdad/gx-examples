@@ -1,0 +1,49 @@
+// 25_sort.gx
+//
+// .sort() works on everything that stores elements in a row: fixed
+// arrays, slices, and array<T>. Sorting a slice sorts that window of the
+// backing array in place, the elements outside it stay put.
+
+fn print_arr(label: str, s: []i32) {
+    print("{label}: ");
+    for (var x in s) {
+        print("{x} ");
+    }
+    print("\n");
+}
+
+fn main() {
+    // === Fixed array sort ===
+    var fixed:i32[6] = {42, 7, 99, 3, 55, 1};
+    print_arr("before fixed", fixed);
+    fixed.sort();
+    print_arr("after  fixed", fixed);
+
+    // === Slice sort ===
+    var data:i32[8] = {80, 20, 60, 10, 90, 40, 70, 30};
+    var sl:[]i32 = data[2:6];
+
+    print_arr("before slice", sl);
+    sl.sort();
+
+    print_arr("after  slice", sl);
+    print_arr("full   data ", data);
+
+    // === Dynamic array sort ===
+    var dyn:array<i32>;
+    dyn.init();
+    dyn.push(33);
+    dyn.push(11);
+    dyn.push(77);
+    dyn.push(22);
+    dyn.push(55);
+
+    // print via slice
+    var ds:[]i32 = dyn;
+    print_arr("before dyn  ", ds);
+    dyn.sort();
+
+    var ds2:[]i32 = dyn;
+    print_arr("after  dyn  ", ds2);
+    dyn.free();
+}

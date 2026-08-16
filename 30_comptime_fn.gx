@@ -1,0 +1,62 @@
+// 30_comptime_fn.gx
+//
+// #fn marks a function the compiler can run while compiling. Call one in
+// a const initializer and the result lands in the binary as a literal,
+// recursion and loops included. It is the same language running earlier,
+// not a separate macro dialect.
+
+// Align a size up to the given alignment
+#fn align_up:i32(size:i32, align:i32) {
+    return (size + align - 1) & ~(align - 1);
+}
+
+// Create a bitmask with N bits set
+#fn make_bitmask:i32(bits:i32) {
+    if (bits <= 0) { return 0; }
+    if (bits >= 32) { return -1; }
+    return (1 << bits) - 1;
+}
+
+// Compile-time fibonacci
+#fn fib:i32(n:i32) {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+// Compile-time max
+#fn max:i32(a:i32, b:i32) {
+    if (a > b) { return a; }
+    return b;
+}
+
+// Compile-time power
+#fn pow:i32(base:i32, exp:i32) {
+    var result:i32 = 1;
+    var i:i32 = 0;
+    while (i < exp) {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+// All evaluated at compile time - no runtime computation!
+const BUF_SIZE = align_up(100, 64);
+const CHANNEL_MASK = make_bitmask(8);
+const PIXEL_MASK = make_bitmask(24);
+const FIB_10 = fib(10);
+const MAX_DIM = max(1920, 1080);
+const TWO_TO_10 = pow(2, 10);
+const COMBINED = align_up(FIB_10, 16);
+
+fn main() {
+    print("=== Compile-Time Functions (#fn) ===");
+    print("align_up(100, 64) = {BUF_SIZE}");
+    print("make_bitmask(8)   = {CHANNEL_MASK}");
+    print("make_bitmask(24)  = {PIXEL_MASK}");
+    print("fib(10)           = {FIB_10}");
+    print("max(1920, 1080)   = {MAX_DIM}");
+    print("pow(2, 10)        = {TWO_TO_10}");
+    print("align_up(fib(10), 16) = {COMBINED}");
+    print("Done!");
+}

@@ -1,0 +1,42 @@
+// 42_typedef.gx
+//
+// type NewName:ExistingType makes an alias, fully interchangeable with the
+// original type. It compiles to a C typedef, so it costs nothing and
+// changes nothing about the layout. Use it to give a type a name that
+// matches how you actually think about it.
+
+// Alias to built-in types
+type byte:u8
+type size:u64
+type real:f32
+
+// Alias to pointer type
+type cstring:*c_char
+
+struct Point {
+    x: real
+    y: real
+}
+
+type Vec2D:Point
+
+fn distance:real(a: *Vec2D, b: *Vec2D) {
+    var dx:real = b.x - a.x
+    var dy:real = b.y - a.y
+    return dx * dx + dy * dy
+}
+
+fn main() {
+    var b:byte = 255
+    var s:size = 1024
+    var r:real = 3.14
+
+    print("byte: {b.str()}\n")
+    print("size: {s.str()}\n")
+    print("real: {r.str()}\n")
+
+    var p1 = Vec2D{1.0, 2.0}
+    var p2 = Vec2D{4.0, 6.0}
+    var d = distance(&p1, &p2)
+    print("distance^2: {d.str()}\n")
+}

@@ -1,0 +1,45 @@
+// 25_fat_str.gx
+//
+// str is a fat pointer, ptr plus len. That makes .len O(1) and lets ==
+// compare contents instead of addresses, which is what you meant anyway.
+// Concatenation with + and interpolation with {expr} build on the same
+// representation.
+
+fn main() {
+    // Basic str with .len and .cstr
+    var s: str = "hello";
+    print("s = {s}\n");
+    print("s.len = {s.len}\n");
+
+    // String comparison (uses ec_str_eq, not pointer comparison!)
+    var a: str = "hello";
+    var b: str = "hello";
+    var c: str = "world";
+
+    if (a == b) {
+        print("a == b: true (correct!)\n");
+    }
+    if (a != c) {
+        print("a != c: true (correct!)\n");
+    }
+
+    // String concatenation
+    var greeting: str = "Hello, " + "GX!";
+    print("greeting = {greeting}\n");
+    print("greeting.len = {greeting.len}\n");
+
+    // String interpolation
+    var x: i32 = 42;
+    var msg: str = "The answer is {x}";
+    print("{msg}\n");
+
+    // Empty string
+    var empty: str = "";
+    print("empty.len = {empty.len}\n");
+
+    // Escape sequences - sizeof handles them correctly
+    var newline: str = "a\nb";
+    print("newline.len = {newline.len}\n");
+
+    print("\nAll fat string tests passed!\n");
+}

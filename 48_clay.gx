@@ -1,0 +1,129 @@
+// 48_clay.gx
+//
+// Clay is a C layout library: you declare a tree of containers and text,
+// it hands back a flat list of render commands. This file builds a small
+// UI, header, sidebar, main panel, then prints every command instead of
+// drawing it. No window, no renderer, just the layout math. That split is
+// the whole point of Clay, and it binds to GX through the clay module.
+
+import clay
+
+fn main() {
+    // Initialize Clay with 800x600 layout
+    var ctx = clay.gx_clay_init(800.0, 600.0)
+    clay.gx_clay_use_default_measure()
+
+    // Simulate mouse at center, not pressed
+    clay.gx_clay_set_pointer(400.0, 300.0, false)
+    clay.gx_clay_update_scroll(false, 0.0, 0.0, 0.016)
+
+    // Begin layout
+    clay.gx_clay_begin_layout()
+
+    // Root container: full-size column, dark background
+    clay.gx_clay_open_id("root")
+    clay.gx_clay_config_full(
+        clay.COLUMN,
+        clay.SIZING_GROW, 0.0, 0.0,
+        clay.SIZING_GROW, 0.0, 0.0,
+        16, 16, 16, 16,
+        8,
+        clay.ALIGN_LEFT, clay.ALIGN_TOP,
+        40.0, 40.0, 40.0, 255.0,
+        0.0, 0.0, 0.0, 0.0
+    )
+
+        // Header bar
+        clay.gx_clay_open_id("header")
+        clay.gx_clay_config_full(
+            clay.ROW,
+            clay.SIZING_GROW, 0.0, 0.0,
+            clay.SIZING_FIT, 0.0, 0.0,
+            12, 12, 8, 8,
+            0,
+            clay.ALIGN_LEFT, clay.ALIGN_CENTER,
+            60.0, 60.0, 60.0, 255.0,
+            8.0, 8.0, 8.0, 8.0
+        )
+            clay.gx_clay_text("GX + Clay UI Demo", 255.0, 255.0, 255.0, 255.0, 0, 24)
+        clay.gx_clay_close()
+
+        // Content area: two columns
+        clay.gx_clay_open_id("content")
+        clay.gx_clay_config_row(12, 0, 0)
+
+            // Sidebar
+            clay.gx_clay_open_id("sidebar")
+            clay.gx_clay_config_full(
+                clay.COLUMN,
+                clay.SIZING_FIXED, 200.0, 200.0,
+                clay.SIZING_GROW, 0.0, 0.0,
+                8, 8, 8, 8,
+                4,
+                clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                50.0, 50.0, 55.0, 255.0,
+                6.0, 6.0, 6.0, 6.0
+            )
+                clay.gx_clay_text("Menu", 200.0, 200.0, 200.0, 255.0, 0, 18)
+                clay.gx_clay_text("- Home", 180.0, 180.0, 180.0, 255.0, 0, 16)
+                clay.gx_clay_text("- Settings", 180.0, 180.0, 180.0, 255.0, 0, 16)
+                clay.gx_clay_text("- About", 180.0, 180.0, 180.0, 255.0, 0, 16)
+            clay.gx_clay_close()
+
+            // Main panel
+            clay.gx_clay_open_id("main")
+            clay.gx_clay_config_full(
+                clay.COLUMN,
+                clay.SIZING_GROW, 0.0, 0.0,
+                clay.SIZING_GROW, 0.0, 0.0,
+                12, 12, 12, 12,
+                8,
+                clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                50.0, 55.0, 50.0, 255.0,
+                6.0, 6.0, 6.0, 6.0
+            )
+                clay.gx_clay_text("Welcome to Clay!", 255.0, 255.0, 200.0, 255.0, 0, 20)
+                clay.gx_clay_text("This is a UI layout computed by Clay.", 200.0, 200.0, 200.0, 255.0, 0, 16)
+                clay.gx_clay_text("Render commands below:", 200.0, 200.0, 200.0, 255.0, 0, 16)
+            clay.gx_clay_close()
+
+        clay.gx_clay_close()
+
+    clay.gx_clay_close()
+
+    // End layout and get render commands
+    var count: i32 = 0
+    var cmds = clay.gx_clay_end_layout(0.016, &count)
+
+    print("Clay generated {count} render commands:\n\n")
+
+    for (i = 0 : count) {
+        var cmd = clay.gx_clay_get_command(cmds, i)
+        var cmd_type = clay.gx_clay_cmd_type(cmd)
+        var x = clay.gx_clay_cmd_x(cmd)
+        var y = clay.gx_clay_cmd_y(cmd)
+        var w = clay.gx_clay_cmd_w(cmd)
+        var h = clay.gx_clay_cmd_h(cmd)
+
+        if (cmd_type == clay.CMD_RECTANGLE) {
+            var r = clay.gx_clay_cmd_rect_r(cmd)
+            var g = clay.gx_clay_cmd_rect_g(cmd)
+            var b = clay.gx_clay_cmd_rect_b(cmd)
+            print("  RECT  ({x}, {y}) {w}x{h}  color=({r},{g},{b})\n")
+        }
+        if (cmd_type == clay.CMD_TEXT) {
+            var text = clay.gx_clay_cmd_text_chars(cmd)
+            var fs = clay.gx_clay_cmd_text_font_size(cmd)
+            print("  TEXT  ({x}, {y}) {w}x{h}  \"{text}\" size={fs}\n")
+        }
+        if (cmd_type == clay.CMD_BORDER) {
+            print("  BORDER ({x}, {y}) {w}x{h}\n")
+        }
+        if (cmd_type == clay.CMD_SCISSOR_START) {
+            print("  SCISSOR_START ({x}, {y}) {w}x{h}\n")
+        }
+        if (cmd_type == clay.CMD_SCISSOR_END) {
+            print("  SCISSOR_END\n")
+        }
+    }
+}

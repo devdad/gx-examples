@@ -1,0 +1,70 @@
+// 04_control_flow.gx
+//
+// if, elif, else, while, and the for loop in its three forms: a range,
+// a for-each over an array, and a for-each with a where filter. collect
+// builds a new array straight out of a loop. That one allocates, which is
+// why the code frees it at the end. Nothing else here touches the heap.
+
+fn main() {
+    // --- If / elif / else ---
+    var score:i32 = 75;
+    var x:i32 = 10;
+
+    print("Helloo\n");
+    if (score >= 90) {
+        print("Grade: A\n");
+    } elif (score >= 80) {
+        print("Grade: B\n");
+    } elif (score >= 70) {
+        print("Grade: C\n");
+    } else {
+        print("Grade: F\n");
+    }
+
+    // --- While loop ---
+    var count:i32 = 0;
+    while (count < 5) {
+        print("count={count}\n");
+        count = count + 1;
+    }
+
+    // --- For-range (inclusive) ---
+    print("\nFor-range 1 to 5:\n");
+    for (i = 1:5) {
+        print("  i={i}\n");
+    }
+
+    // --- For-each over array ---
+    print("\nFor-each:\n");
+    var arr:i32[5] = {10, 20, 30, 40, 50};
+    for (var x in arr) {
+        print("  x={x}\n");
+    }
+
+    // --- For-each with where filter ---
+    print("\nFiltered (even only):\n");
+    var nums:i32[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    for (var n in nums) where (n % 2 == 0) {
+        print("  even={n}\n");
+    }
+
+    // --- Collect: build array from loop ---
+    var evens = for (n in nums) where (n % 2 == 0) collect n;
+    print("\nCollected evens ({evens.len()}):");
+    for (i = 0:3) {
+        print(" {evens.at(i)}");
+    }
+
+    print("\n");
+
+    // Collect with transform
+    var doubled = for (n in nums) where (n <= 4) collect n * 10;
+    print("Doubled small ({doubled.len()}):");
+    for (i = 0:3) {
+        print(" {doubled.at(i)}");
+    }
+    print("\n");
+
+    evens.free();
+    doubled.free();
+}

@@ -1,0 +1,67 @@
+// 47_xml.gx
+//
+// Parse an XML document, walk its children, read attributes and text,
+// then build a fresh tree and serialize it. Nodes are handles, siblings
+// come back one at a time, and freeing what you parsed or built is your
+// job. No surprises there.
+
+import xml
+
+fn main() {
+    // ---- Parse XML from string ----
+    var data = "<library name='City Library'><book id='1'><title>The Rust Programming Language</title><author>Steve Klabnik</author><year>2019</year></book><book id='2'><title>The C Programming Language</title><author>Kernighan and Ritchie</author><year>1978</year></book><book id='3'><title>Structure and Interpretation</title><author>Abelson and Sussman</author><year>1996</year></book></library>"
+
+    var doc = xml.gx_xml_parse(data.cstr, data.len)
+    if (xml.gx_xml_has_error(doc)) {
+        print("Parse error: {xml.gx_xml_error(doc)}\n")
+        xml.gx_xml_free(doc)
+        return
+    }
+
+    // Root element
+    print("Root tag: {xml.gx_xml_name(doc)}\n")
+
+    var lib_name = xml.gx_xml_attr(doc, "name")
+    print("Library: {lib_name}\n")
+
+    var num_books = xml.gx_xml_child_count(doc, "book")
+    print("Book count: {num_books}\n\n")
+
+    // Iterate children with same tag name
+    var book = xml.gx_xml_child(doc, "book")
+    while (book != 0) {
+        var id = xml.gx_xml_attr(book, "id")
+        var title = xml.gx_xml_txt(xml.gx_xml_child(book, "title"))
+        var author = xml.gx_xml_txt(xml.gx_xml_child(book, "author"))
+        var year = xml.gx_xml_txt(xml.gx_xml_child(book, "year"))
+        print("Book {id}: {title} by {author} ({year})\n")
+        book = xml.gx_xml_next(book)
+    }
+
+    // ---- Build XML from scratch ----
+    print("\n--- Building XML ---\n")
+    var root = xml.gx_xml_new("config")
+    xml.gx_xml_set_attr(root, "version", "1.0")
+
+    var window = xml.gx_xml_add_child(root, "window")
+    xml.gx_xml_set_attr(window, "width", "1280")
+    xml.gx_xml_set_attr(window, "height", "720")
+    xml.gx_xml_set_txt(window, "Main Window")
+
+    var gfx = xml.gx_xml_add_child(root, "graphics")
+    xml.gx_xml_set_attr(gfx, "backend", "opengl")
+
+    var res = xml.gx_xml_add_child(gfx, "resolution")
+    xml.gx_xml_set_txt(res, "1920x1080")
+
+    var aa = xml.gx_xml_add_child(gfx, "antialiasing")
+    xml.gx_xml_set_txt(aa, "4x MSAA")
+
+    // Serialize to string
+    var xml_str = xml.gx_xml_to_str(root)
+    print("{xml_str}\n")
+
+    xml.gx_xml_free_str(xml_str)
+    xml.gx_xml_free(root)
+    xml.gx_xml_free(doc)
+}

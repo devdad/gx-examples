@@ -1,0 +1,202 @@
+// 49_clay_raylib.gx
+//
+// The same Clay idea as 48, but drawn for real. Raylib opens the window,
+// Clay computes the layout every frame, and clay_raylib turns the command
+// list into draw calls with a single function. Mouse and scroll feed into
+// Clay, F1 toggles its debug overlay. Uses the clay and raylib modules.
+
+import clay
+import clay_raylib
+import raylib.core
+import raylib.input
+import raylib.text
+import raylib.shapes
+import raylib.colors
+
+fn main() {
+    InitWindow(800, 600, "GX + Clay + Raylib")
+    SetTargetFPS(60)
+
+    // Initialize Clay
+    var ctx = clay.gx_clay_init(800.0, 600.0)
+
+    // Set up font table (index 0 = default font)
+    var font = GetFontDefault()
+    clay_raylib.gx_clay_raylib_init(&font, 1)
+
+    while (!WindowShouldClose()) {
+        var dt = GetFrameTime()
+
+        // Feed input to Clay
+        var mx = GetMouseX()
+        var my = GetMouseY()
+        clay.gx_clay_set_pointer(mx, my, IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        clay.gx_clay_update_scroll(true, 0.0, GetMouseWheelMove() * 30.0, dt)
+
+        // Toggle debug view with F1
+        if (IsKeyPressed(KEY_F1)) {
+            clay.gx_clay_set_debug(!clay.gx_clay_is_debug())
+        }
+
+        // ---- Declare UI ----
+        clay.gx_clay_begin_layout()
+
+        // Root: full-screen dark column
+        clay.gx_clay_open_id("root")
+        clay.gx_clay_config_full(
+            clay.COLUMN,
+            clay.SIZING_GROW, 0.0, 0.0,
+            clay.SIZING_GROW, 0.0, 0.0,
+            16, 16, 16, 16, 12,
+            clay.ALIGN_LEFT, clay.ALIGN_TOP,
+            35.0, 35.0, 38.0, 255.0,
+            0.0, 0.0, 0.0, 0.0
+        )
+
+            // Header bar
+            clay.gx_clay_open_id("header")
+            clay.gx_clay_config_full(
+                clay.ROW,
+                clay.SIZING_GROW, 0.0, 0.0,
+                clay.SIZING_FIT, 0.0, 0.0,
+                16, 16, 10, 10, 0,
+                clay.ALIGN_LEFT, clay.ALIGN_CENTER,
+                55.0, 55.0, 60.0, 255.0,
+                8.0, 8.0, 8.0, 8.0
+            )
+                clay.gx_clay_text("Clay + Raylib Renderer", 230.0, 230.0, 240.0, 255.0, 0, 20)
+            clay.gx_clay_close()
+
+            // Body: sidebar + main
+            clay.gx_clay_open_id("body")
+            clay.gx_clay_config_full(
+                clay.ROW,
+                clay.SIZING_GROW, 0.0, 0.0,
+                clay.SIZING_GROW, 0.0, 0.0,
+                0, 0, 0, 0, 12,
+                clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                0.0, 0.0, 0.0, 0.0,
+                0.0, 0.0, 0.0, 0.0
+            )
+
+                // Sidebar
+                clay.gx_clay_open_id("sidebar")
+                clay.gx_clay_config_full(
+                    clay.COLUMN,
+                    clay.SIZING_FIXED, 180.0, 180.0,
+                    clay.SIZING_GROW, 0.0, 0.0,
+                    12, 12, 12, 12, 6,
+                    clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                    45.0, 45.0, 50.0, 255.0,
+                    8.0, 8.0, 8.0, 8.0
+                )
+                    clay.gx_clay_text("Navigation", 200.0, 200.0, 210.0, 255.0, 0, 16)
+
+                    // Menu items
+                    for (i = 0 : 4) {
+                        clay.gx_clay_open_idi("menu", i)
+                        clay.gx_clay_config_full(
+                            clay.ROW,
+                            clay.SIZING_GROW, 0.0, 0.0,
+                            clay.SIZING_FIT, 0.0, 0.0,
+                            8, 8, 6, 6, 0,
+                            clay.ALIGN_LEFT, clay.ALIGN_CENTER,
+                            55.0, 55.0, 60.0, 255.0,
+                            4.0, 4.0, 4.0, 4.0
+                        )
+                            if (i == 0) { clay.gx_clay_text("Dashboard", 180.0, 180.0, 190.0, 255.0, 0, 14) }
+                            if (i == 1) { clay.gx_clay_text("Settings", 180.0, 180.0, 190.0, 255.0, 0, 14) }
+                            if (i == 2) { clay.gx_clay_text("Profile", 180.0, 180.0, 190.0, 255.0, 0, 14) }
+                            if (i == 3) { clay.gx_clay_text("About", 180.0, 180.0, 190.0, 255.0, 0, 14) }
+                        clay.gx_clay_close()
+                    }
+                clay.gx_clay_close()
+
+                // Main content area
+                clay.gx_clay_open_id("main")
+                clay.gx_clay_config_full(
+                    clay.COLUMN,
+                    clay.SIZING_GROW, 0.0, 0.0,
+                    clay.SIZING_GROW, 0.0, 0.0,
+                    16, 16, 16, 16, 10,
+                    clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                    42.0, 42.0, 46.0, 255.0,
+                    8.0, 8.0, 8.0, 8.0
+                )
+                    clay.gx_clay_text("Welcome to Clay!", 255.0, 220.0, 150.0, 255.0, 0, 22)
+                    clay.gx_clay_text("This UI is laid out by Clay and rendered by Raylib.", 190.0, 190.0, 200.0, 255.0, 0, 14)
+                    clay.gx_clay_text("Press F1 to toggle the debug overlay.", 160.0, 160.0, 170.0, 255.0, 0, 14)
+
+                    // Status cards row
+                    clay.gx_clay_open_id("cards")
+                    clay.gx_clay_config_full(
+                        clay.ROW,
+                        clay.SIZING_GROW, 0.0, 0.0,
+                        clay.SIZING_FIT, 0.0, 0.0,
+                        0, 0, 0, 0, 10,
+                        clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                        0.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 0.0
+                    )
+                        // Card 1
+                        clay.gx_clay_open_id("card1")
+                        clay.gx_clay_config_full(
+                            clay.COLUMN,
+                            clay.SIZING_GROW, 0.0, 0.0,
+                            clay.SIZING_FIT, 0.0, 0.0,
+                            12, 12, 10, 10, 4,
+                            clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                            60.0, 80.0, 60.0, 255.0,
+                            6.0, 6.0, 6.0, 6.0
+                        )
+                            clay.gx_clay_text("FPS", 150.0, 200.0, 150.0, 255.0, 0, 12)
+                            clay.gx_clay_text("60", 100.0, 255.0, 100.0, 255.0, 0, 28)
+                        clay.gx_clay_close()
+
+                        // Card 2
+                        clay.gx_clay_open_id("card2")
+                        clay.gx_clay_config_full(
+                            clay.COLUMN,
+                            clay.SIZING_GROW, 0.0, 0.0,
+                            clay.SIZING_FIT, 0.0, 0.0,
+                            12, 12, 10, 10, 4,
+                            clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                            60.0, 60.0, 80.0, 255.0,
+                            6.0, 6.0, 6.0, 6.0
+                        )
+                            clay.gx_clay_text("Elements", 150.0, 150.0, 200.0, 255.0, 0, 12)
+                            clay.gx_clay_text("12", 100.0, 150.0, 255.0, 255.0, 0, 28)
+                        clay.gx_clay_close()
+
+                        // Card 3
+                        clay.gx_clay_open_id("card3")
+                        clay.gx_clay_config_full(
+                            clay.COLUMN,
+                            clay.SIZING_GROW, 0.0, 0.0,
+                            clay.SIZING_FIT, 0.0, 0.0,
+                            12, 12, 10, 10, 4,
+                            clay.ALIGN_LEFT, clay.ALIGN_TOP,
+                            80.0, 60.0, 60.0, 255.0,
+                            6.0, 6.0, 6.0, 6.0
+                        )
+                            clay.gx_clay_text("Layout", 200.0, 150.0, 150.0, 255.0, 0, 12)
+                            clay.gx_clay_text("OK", 255.0, 150.0, 100.0, 255.0, 0, 28)
+                        clay.gx_clay_close()
+                    clay.gx_clay_close()
+                clay.gx_clay_close()
+
+            clay.gx_clay_close()
+
+        clay.gx_clay_close()
+
+        // ---- Compute layout & render ----
+        var count: i32 = 0
+        var cmds = clay.gx_clay_end_layout(dt, &count)
+
+        BeginDrawing()
+        ClearBackground(BLACK)
+        clay_raylib.gx_clay_render_raylib(cmds, count)
+        EndDrawing()
+    }
+    CloseWindow()
+}

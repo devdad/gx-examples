@@ -1,0 +1,83 @@
+// 21_match.gx
+//
+// match is a multi-way branch. Arms take single values, comma lists,
+// inclusive ranges like 0..59, or enum members, and default catches the
+// rest. An arm body is a statement or a block, and there is no
+// fallthrough, so you never write break. It compiles down to the plain
+// branching you would have written in C by hand.
+
+// Test 1: Match on integer with single values
+fn test_int() {
+    var x:i32 = 2;
+    match (x) {
+        1: print("one\n")
+        2: print("two\n")
+        3: print("three\n")
+        default: print("other\n")
+    }
+}
+
+// Test 2: Match with comma-separated patterns
+fn test_comma() {
+    var code:i32 = 5;
+    match (code) {
+        1, 2, 3: print("low\n")
+        4, 5, 6: print("mid\n")
+        7, 8, 9: print("high\n")
+        default: print("out of range\n")
+    }
+}
+
+// Test 3: Match with range
+fn test_range() {
+    var score:i32 = 85;
+    match (score) {
+        0..59: print("F\n")
+        60..69: print("D\n")
+        70..79: print("C\n")
+        80..89: print("B\n")
+        90..100: print("A\n")
+        default: print("invalid\n")
+    }
+}
+
+// Test 4: Match on enum
+enum Color { Red Green Blue }
+
+fn test_enum() {
+    var c:Color = Green;
+    match (c) {
+        Red: print("red\n")
+        Green: print("green\n")
+        Blue: print("blue\n")
+    }
+}
+
+// Test 5: Match with block body
+fn test_block() {
+    var n:i32 = 3;
+    match (n) {
+        1: {
+            print("one ");
+            print("(single)\n");
+        }
+        2, 3: {
+            print("two or three ");
+            print("(group)\n");
+        }
+        default: print("other\n")
+    }
+}
+
+fn main() {
+    print("--- int match ---\n");
+    test_int();
+    print("--- comma match ---\n");
+    test_comma();
+    print("--- range match ---\n");
+    test_range();
+    print("--- enum match ---\n");
+    test_enum();
+    print("--- block match ---\n");
+    test_block();
+}

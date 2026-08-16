@@ -1,0 +1,54 @@
+// 26_slice.gx
+//
+// A slice is a view into an array, pointer plus length, nothing copied.
+// Arrays carry .len and convert to slices at function boundaries on their
+// own. One thing to get right: slice ranges are inclusive on both ends,
+// matching the loop convention for (i = a:b), so arr[1:4] is indices 1
+// through 4, four elements.
+
+fn sum:i32(data: []i32) {
+    var total: i32 = 0;
+    for (var x in data) {
+        total += x;
+    }
+    return total;
+}
+
+fn print_slice(data: []i32) {
+    print("[");
+    for (var x in data) {
+        print("{x} ");
+    }
+    print("]\n");
+}
+
+fn main() {
+    var arr: i32[5] = {10, 20, 30, 40, 50};
+
+    // Arrays have .len - compile-time constant, no struct needed
+    print("arr.len = {arr.len}\n");
+
+    // Arrays implicitly convert to slices at function boundaries
+    print("sum(arr) = {sum(arr)}\n");
+    print("arr = ");
+    print_slice(arr);
+
+    // Subslicing works directly on arrays. Inclusive ranges:
+    // arr[1:4] takes indices 1, 2, 3, 4 → 4 elements.
+    var mid: []i32 = arr[1:4];
+    print("arr[1:4] = ");
+    print_slice(mid);
+    print("mid.len = {mid.len}\n");
+
+    // Slices work the same way
+    var s: []i32 = arr;
+    print("s[0] = {s[0]}\n");
+    print("s.len = {s.len}\n");
+
+    // Subslice of subslice - mid[0:2] takes indices 0, 1, 2 → 3 elements
+    var inner: []i32 = mid[0:2];
+    print("inner = ");
+    print_slice(inner);
+
+    print("\nAll tests passed!\n");
+}

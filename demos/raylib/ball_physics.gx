@@ -1,0 +1,285 @@
+// ball_physics.gx
+//
+// A ball pit, ported from a raylib shapes example. Grab and throw
+// balls with the left mouse button, spawn more with the right, shake
+// everything with the middle, change gravity with the wheel. The
+// physics is pairwise elastic impulses over one fixed array of
+// structs, no allocations anywhere.
+@backend("llvm")
+import raylib
+
+const MAX_BALLS = 200
+const SCREEN_W = 800
+const SCREEN_H = 600
+
+struct Ball {
+    position: Vector2
+    speed: Vector2
+    prev_position: Vector2
+    radius: f32
+    friction: f32
+    elasticity: f32
+    color: Color
+    grabbed: bool
+}
+
+// Global ball pool (fixed size, no dynamic allocation)
+var g_balls: Ball[200]
+var g_ball_count: i32 = 0
+var g_grabbed_idx: i32 = 0 - 1   // -1 = none grabbed
+var g_press_offset_x: f32 = 0.0
+var g_press_offset_y: f32 = 0.0
+
+fn spawn_ball(px: f32, py: f32, vx: f32, vy: f32, radius: f32, r: u8, g: u8, b: u8) {
+    if (g_ball_count >= MAX_BALLS) { return }
+    var i: i32 = g_ball_count
+    g_balls[i].position.x = px
+    g_balls[i].position.y = py
+    g_balls[i].speed.x = vx
+    g_balls[i].speed.y = vy
+    g_balls[i].prev_position.x = px
+    g_balls[i].prev_position.y = py
+    g_balls[i].radius = radius
+    g_balls[i].friction = 0.985
+    g_balls[i].elasticity = 0.75
+    g_balls[i].color.r = r
+    g_balls[i].color.g = g
+    g_balls[i].color.b = b
+    g_balls[i].color.a = 255
+    g_balls[i].grabbed = false
+    g_ball_count = g_ball_count + 1
+}
+
+fn main() {
+    InitWindow(SCREEN_W, SCREEN_H, "raylib [shapes] example - ball physics")
+    SetTargetFPS(60)
+
+    // Initial ball: big blue one in the center
+    spawn_ball(SCREEN_W * 0.5, SCREEN_H * 0.5, 200.0, 200.0, 40.0, 0, 121, 241)
+
+    var gravity: f32 = 100.0
+    var sw: f32 = SCREEN_W * 1.0
+    var sh: f32 = SCREEN_H * 1.0
+
+    while (!WindowShouldClose()) {
+        var delta: f32 = GetFrameTime()
+        var mouse: Vector2 = GetMousePosition()
+
+        // ---- Grab a ball on left-click ----
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            var i: i32 = g_ball_count - 1
+            while (i >= 0) {
+                var dx: f32 = mouse.x - g_balls[i].position.x
+                var dy: f32 = mouse.y - g_balls[i].position.y
+                var dist_sq: f32 = dx * dx + dy * dy
+                var r_sq: f32 = g_balls[i].radius * g_balls[i].radius
+                if (dist_sq <= r_sq) {
+                    g_balls[i].grabbed = true
+                    g_grabbed_idx = i
+                    g_press_offset_x = dx
+                    g_press_offset_y = dy
+                    i = 0 - 1    // break
+                }
+                i = i - 1
+            }
+        }
+
+        // ---- Release grabbed ball ----
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            if (g_grabbed_idx >= 0) {
+                g_balls[g_grabbed_idx].grabbed = false
+                g_grabbed_idx = 0 - 1
+            }
+        }
+
+        // ---- Spawn new random ball on right-click ----
+        var spawn_new: bool = false
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) { spawn_new = true }
+        if (IsKeyDown(KEY_LEFT_CONTROL)) {
+            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) { spawn_new = true }
+        }
+        if (spawn_new) {
+            var vx: f32 = (f32)GetRandomValue(0 - 300, 300)
+            var vy: f32 = (f32)GetRandomValue(0 - 300, 300)
+            var rad: f32 = 20.0 + (f32)GetRandomValue(0, 30)
+            var cr: c_int = GetRandomValue(0, 255)
+            var cg: c_int = GetRandomValue(0, 255)
+            var cb: c_int = GetRandomValue(0, 255)
+            spawn_ball(mouse.x, mouse.y, vx, vy, rad, (u8)cr, (u8)cg, (u8)cb)
+        }
+
+        // ---- Shake all balls on middle-click ----
+        if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+            for (i = 0 : g_ball_count - 1) {
+                if (!g_balls[i].grabbed) {
+                    g_balls[i].speed.x = (f32)GetRandomValue(0 - 2000, 2000)
+                    g_balls[i].speed.y = (f32)GetRandomValue(0 - 2000, 2000)
+                }
+            }
+        }
+
+        // ---- Adjust gravity with mouse wheel ----
+        gravity = gravity + GetMouseWheelMove() * 5.0
+
+        // ---- Update ball physics ----
+        for (i = 0 : g_ball_count - 1) {
+            if (!g_balls[i].grabbed) {
+                g_balls[i].position.x = g_balls[i].position.x + g_balls[i].speed.x * delta
+                g_balls[i].position.y = g_balls[i].position.y + g_balls[i].speed.y * delta
+
+                // Wall collision: right
+                if ((g_balls[i].position.x + g_balls[i].radius) >= sw) {
+                    g_balls[i].position.x = sw - g_balls[i].radius
+                    g_balls[i].speed.x = 0.0 - g_balls[i].speed.x * g_balls[i].elasticity
+                }
+                // Wall collision: left
+                if ((g_balls[i].position.x - g_balls[i].radius) <= 0.0) {
+                    g_balls[i].position.x = g_balls[i].radius
+                    g_balls[i].speed.x = 0.0 - g_balls[i].speed.x * g_balls[i].elasticity
+                }
+                // Wall collision: bottom
+                if ((g_balls[i].position.y + g_balls[i].radius) >= sh) {
+                    g_balls[i].position.y = sh - g_balls[i].radius
+                    g_balls[i].speed.y = 0.0 - g_balls[i].speed.y * g_balls[i].elasticity
+                }
+                // Wall collision: top
+                if ((g_balls[i].position.y - g_balls[i].radius) <= 0.0) {
+                    g_balls[i].position.y = g_balls[i].radius
+                    g_balls[i].speed.y = 0.0 - g_balls[i].speed.y * g_balls[i].elasticity
+                }
+
+                // Friction + gravity
+                g_balls[i].speed.x = g_balls[i].speed.x * g_balls[i].friction
+                g_balls[i].speed.y = g_balls[i].speed.y * g_balls[i].friction + gravity
+            } else {
+                // Ball is being dragged
+                var new_x: f32 = mouse.x - g_press_offset_x
+                var new_y: f32 = mouse.y - g_press_offset_y
+                g_balls[i].speed.x = (new_x - g_balls[i].prev_position.x) / delta
+                g_balls[i].speed.y = (new_y - g_balls[i].prev_position.y) / delta
+                g_balls[i].prev_position.x = new_x
+                g_balls[i].prev_position.y = new_y
+                g_balls[i].position.x = new_x
+                g_balls[i].position.y = new_y
+            }
+        }
+
+        // ---- Ball-to-ball collision (O(n^2) pairwise) ----
+        // Uses equal-mass elastic collision along the collision normal.
+        // Mass is approximated as radius (bigger balls push harder).
+        for (a = 0 : g_ball_count - 1) {
+            for (b = a + 1 : g_ball_count - 1) {
+                var dx: f32 = g_balls[b].position.x - g_balls[a].position.x
+                var dy: f32 = g_balls[b].position.y - g_balls[a].position.y
+                var min_dist: f32 = g_balls[a].radius + g_balls[b].radius
+                var dist_sq: f32 = dx * dx + dy * dy
+                var min_sq: f32 = min_dist * min_dist
+
+                if (dist_sq < min_sq) {
+                    if (dist_sq > 0.0001) {
+                        // Collision normal (unit vector from a to b)
+                        // sqrt approximation: Newton's method would be more accurate,
+                        // but for stability we use inverse sqrt via division.
+                        var dist: f32 = dist_sq
+                        // Fast approximate sqrt - just use raylib-provided one via math
+                        // Simple approach: iterative refinement
+                        var guess: f32 = min_dist
+                        guess = (guess + dist / guess) * 0.5
+                        guess = (guess + dist / guess) * 0.5
+                        guess = (guess + dist / guess) * 0.5
+                        dist = guess
+
+                        var nx: f32 = dx / dist
+                        var ny: f32 = dy / dist
+
+                        // Separate overlapping balls (split the overlap proportionally)
+                        var overlap: f32 = (min_dist - dist) * 0.5
+                        if (!g_balls[a].grabbed) {
+                            g_balls[a].position.x = g_balls[a].position.x - nx * overlap
+                            g_balls[a].position.y = g_balls[a].position.y - ny * overlap
+                        }
+                        if (!g_balls[b].grabbed) {
+                            g_balls[b].position.x = g_balls[b].position.x + nx * overlap
+                            g_balls[b].position.y = g_balls[b].position.y + ny * overlap
+                        }
+
+                        // Relative velocity along the normal
+                        var dvx: f32 = g_balls[b].speed.x - g_balls[a].speed.x
+                        var dvy: f32 = g_balls[b].speed.y - g_balls[a].speed.y
+                        var vel_along: f32 = dvx * nx + dvy * ny
+
+                        // Only resolve if balls are moving toward each other
+                        if (vel_along < 0.0) {
+                            // Elastic collision with mass = radius
+                            var ma: f32 = g_balls[a].radius
+                            var mb: f32 = g_balls[b].radius
+                            var e: f32 = 0.55   // elasticity (lower = more damping)
+                            var j: f32 = (0.0 - (1.0 + e)) * vel_along / (1.0 / ma + 1.0 / mb)
+                            var impulse_x: f32 = j * nx
+                            var impulse_y: f32 = j * ny
+
+                            if (!g_balls[a].grabbed) {
+                                g_balls[a].speed.x = g_balls[a].speed.x - impulse_x / ma
+                                g_balls[a].speed.y = g_balls[a].speed.y - impulse_y / ma
+                            }
+                            if (!g_balls[b].grabbed) {
+                                g_balls[b].speed.x = g_balls[b].speed.x + impulse_x / mb
+                                g_balls[b].speed.y = g_balls[b].speed.y + impulse_y / mb
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- Rest clamp: kill tiny velocities to let balls settle ----
+        // Without this, balls near the floor vibrate forever due to gravity
+        // fighting the elastic response.
+        for (k = 0 : g_ball_count - 1) {
+            if (!g_balls[k].grabbed) {
+                var vx: f32 = g_balls[k].speed.x
+                var vy: f32 = g_balls[k].speed.y
+                var speed_sq: f32 = vx * vx + vy * vy
+
+                // If ball is touching the floor and moving slowly, clamp to rest
+                var on_floor: bool = (g_balls[k].position.y + g_balls[k].radius) >= (sh - 1.0)
+                if (on_floor) {
+                    if (speed_sq < 400.0) {
+                        g_balls[k].speed.x = vx * 0.8    // horizontal damping
+                        g_balls[k].speed.y = 0.0         // kill vertical bounce
+                    }
+                }
+                // Also kill horizontal micro-movement to prevent sliding forever
+                if (vx < 1.5) {
+                    if (vx > 0.0 - 1.5) {
+                        g_balls[k].speed.x = 0.0
+                    }
+                }
+            }
+        }
+
+        // ---- Draw ----
+        BeginDrawing()
+        ClearBackground(RAYWHITE)
+
+        for (i = 0 : g_ball_count - 1) {
+            DrawCircleV(g_balls[i].position, g_balls[i].radius, g_balls[i].color)
+            DrawCircleLinesV(g_balls[i].position, g_balls[i].radius, BLACK)
+        }
+
+        DrawText("Left-click + drag a ball to grab and throw", 10, 10, 14, DARKGRAY)
+        DrawText("Right-click to spawn (hold Left Ctrl for rapid-fire)", 10, 30, 14, DARKGRAY)
+        DrawText("Mouse wheel: gravity    Middle-click: shake", 10, 50, 14, DARKGRAY)
+
+        var count = g_ball_count
+        var grav_i = (i32)gravity
+        var info1 = "BALL COUNT: {count}"
+        var info2 = "GRAVITY: {grav_i}"
+        DrawText(info1.cstr, 10, SCREEN_H - 60, 20, BLACK)
+        DrawText(info2.cstr, 10, SCREEN_H - 30, 20, BLACK)
+
+        EndDrawing()
+    }
+
+    CloseWindow()
+}

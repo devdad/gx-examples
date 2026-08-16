@@ -1,0 +1,85 @@
+// 38_strings.gx
+//
+// str is a fat pointer, a char pointer plus a length. Length is O(1), and
+// slicing methods like sub, trim, find and contains just hand back a view
+// of the same bytes, no allocation. Methods that produce new text, like
+// replace, upper and split, write into a scratch buffer. Chaining works
+// because every method takes and returns plain str values.
+
+fn main() {
+    var s = "  Hello, World!  "
+
+    // ── trim ─────────────────────────────────
+    var trimmed = s.trim()
+    var trim_l = s.trim_left()
+    var trim_r = s.trim_right()
+    print("trim:       '" + trimmed + "'\n")
+    print("trim_left:  '" + trim_l + "'\n")
+    print("trim_right: '" + trim_r + "'\n")
+
+    var hw = s.trim()
+
+    // ── find / contains ──────────────────────
+    var needle1 = "World"
+    var needle2 = "xyz"
+    var needle3 = "l"
+    print("find World:     {hw.find(needle1)}\n")
+    print("find xyz:       {hw.find(needle2)}\n")
+    print("find_last l:    {hw.find_last(needle3)}\n")
+    print("contains Hello: {hw.contains(needle1)}\n")
+    print("contains xyz:   {hw.contains(needle2)}\n")
+
+    // ── starts_with / ends_with ──────────────
+    var prefix = "Hello"
+    var suffix = "!"
+    print("starts_with Hello: {hw.starts_with(prefix)}\n")
+    print("ends_with !:       {hw.ends_with(suffix)}\n")
+
+    // ── sub ──────────────────────────────────
+    var sub1 = hw.sub(0, 5)
+    var sub2 = hw.sub(7)
+    print("sub(0,5): '" + sub1 + "'\n")
+    print("sub(7):   '" + sub2 + "'\n")
+
+    // ── upper / lower ────────────────────────
+    var up = hw.upper()
+    var lo = hw.lower()
+    print("upper: '" + up + "'\n")
+    print("lower: '" + lo + "'\n")
+
+    // ── replace ──────────────────────────────
+    var old_s = "World"
+    var new_s = "GX"
+    var rep = hw.replace(old_s, new_s)
+    print("replace: '" + rep + "'\n")
+
+    // ── count ────────────────────────────────
+    var cnt = hw.count(needle3)
+    print("count l: {cnt}\n")
+
+    // ── repeat ───────────────────────────────
+    var dash_str = "-"
+    var dash = dash_str.repeat(20)
+    print(dash + "\n")
+
+    // ── split ────────────────────────────────
+    var csv = "one,two,three,four"
+    var delim = ","
+    var parts = csv.split(delim)
+    print("split count: {parts.len}\n")
+    for (var p in parts) {
+        print("  part: '" + p + "'\n")
+    }
+
+    // ── chaining ─────────────────────────────
+    var input_str = "  HELLO world  "
+    var hello = "hello"
+    var hi = "hi"
+    var result = input_str.trim().lower().replace(hello, hi)
+    print("chained: '" + result + "'\n")
+
+    // ── string interpolation to var ──────────
+    var name = "GX"
+    var greeting:str = "Hello {name}!"
+    print(greeting + "\n")
+}

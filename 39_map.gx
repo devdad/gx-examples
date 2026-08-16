@@ -1,0 +1,157 @@
+// 39_map.gx
+//
+// map<K,V> is the built-in hash map. Declare it and it is ready. You get
+// set, get, has, remove, len, clear, and free when you are done, because
+// nothing frees itself behind your back. Iteration comes in two forms,
+// destructured (var k, v in m) or entry-based with item.key and item.value,
+// and both take a where filter. Order is hash order, so don't rely on it.
+
+// Test 1: String-keyed map
+fn test_str_map() {
+    var scores:map<str, i32>
+
+    var names:map<str,str>
+
+    names.set("Afan","OLOVCIC")
+    names.set("Sanela","GLUHOVIC")
+    names.set("Ajdin","OLOVCIC")
+
+    for (var k, v in names) {
+        print("name: {k} {v}\n")
+    }
+    for (var item in names) {
+        print("name: {item.key} {item.value}\n")
+    }
+
+    scores.set("alice", 95)
+    scores.set("bob", 82)
+    scores.set("charlie", 91)
+
+    var a:str = "alice"
+    var b:str = "bob"
+    var c:str = "charlie"
+    var d:str = "dave"
+
+    print("alice: ")
+    print("{scores.get(a)}\n")
+    print("bob: ")
+    print("{scores.get(b)}\n")
+    print("has charlie: {scores.has(c)}\n")
+    print("has dave: {scores.has(d)}\n")
+    print("len: {scores.len()}\n")
+
+    // Update existing key
+    scores.set("bob", 88)
+    print("bob updated: {scores.get(b)}\n")
+
+    // Remove
+    scores.remove(c)
+    print("after remove, has charlie: {scores.has(c)}\n")
+    print("len after remove: {scores.len()}\n")
+
+    scores.free()
+}
+
+// Test 2: Integer-keyed map
+fn test_int_map() {
+    var names:map<i32, str>
+    names.set(1, "one")
+    names.set(2, "two")
+    names.set(3, "three")
+
+    print("1 -> ")
+    print(names.get(1))
+    print("\n")
+    print("2 -> ")
+    print(names.get(2))
+    print("\n")
+    print("3 -> ")
+    print(names.get(3))
+    print("\n")
+    print("has 4: {names.has(4)}\n")
+
+    names.free()
+}
+
+// Test 3: Many entries (tests grow/rehash)
+fn test_grow() {
+    var m:map<i32, i32>
+    for (i = 0:99) {
+        m.set(i, i * i)
+    }
+    print("len after 100 inserts: {m.len()}\n")
+    print("m[50] = {m.get(50)}\n")
+    print("m[99] = {m.get(99)}\n")
+
+    // Clear and verify
+    m.clear()
+    print("len after clear: {m.len()}\n")
+
+    m.free()
+}
+
+// Test 4: Map iteration - destructured (var k, v)
+fn test_iter_kv() {
+    var scores:map<str, i32>
+    scores.set("alice", 95)
+    scores.set("bob", 62)
+    scores.set("charlie", 91)
+    scores.set("dave", 55)
+
+    print("All scores (k, v):\n")
+    for (var name, score in scores) {
+        print("  {name}: {score}\n")
+    }
+
+    print("High scores (>= 80):\n")
+    for (var name, score in scores) where (score >= 80) {
+        print("  {name}: {score}\n")
+    }
+
+    scores.free()
+}
+
+// Test 5: Map iteration - entry-based (var item → item.key, item.value)
+fn test_iter_entry() {
+    var scores:map<str, i32>
+    scores.set("alice", 95)
+    scores.set("bob", 62)
+    scores.set("charlie", 91)
+    scores.set("dave", 55)
+
+    print("All scores (entry):\n")
+    for (var entry in scores) {
+        print("  {entry.key}: {entry.value}\n")
+    }
+
+    print("High scores (>= 80):\n")
+    for (var entry in scores) where (entry.value >= 80) {
+        print("  {entry.key}: {entry.value}\n")
+    }
+
+    // Integer-keyed iteration
+    var m:map<i32, i32>
+    for (i = 0:9) {
+        m.set(i, i * i)
+    }
+    print("Squares:\n")
+    for (var item in m) {
+        print("  {item.key}^2 = {item.value}\n")
+    }
+
+    scores.free()
+    m.free()
+}
+
+fn main() {
+    print("=== String-keyed map ===\n")
+    test_str_map()
+    print("\n=== Integer-keyed map ===\n")
+    test_int_map()
+    print("\n=== Grow/rehash test ===\n")
+    test_grow()
+    print("\n=== Map iteration (k, v) ===\n")
+    test_iter_kv()
+    print("\n=== Map iteration (entry) ===\n")
+    test_iter_entry()
+}

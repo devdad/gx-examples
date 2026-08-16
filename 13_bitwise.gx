@@ -1,0 +1,101 @@
+// 13_bitwise.gx
+//
+// The bitwise operators, straight from C: & | ^ ~ and both shifts, plus
+// hex literals. The second half is the patterns you actually use them for,
+// flag sets, byte extraction, popcount, the power-of-two trick.
+
+fn main() {
+    // --- Hex literals ---
+    var a:i32 = 0xFF;
+    var b:i32 = 0x0F;
+    var c:i32 = 0x0A;
+
+    print("Hex literals: a=0xFF={a}, b=0x0F={b}\n");
+
+    // --- Bitwise AND ---
+    var and_result:i32 = a & b & c;
+    print("\nBitwise AND: 0xFF & 0x0F = {and_result}\n");
+
+    // --- Bitwise OR ---
+    var or_result:i32 = 0xF0 | 0x0F;
+    print("Bitwise OR:  0xF0 | 0x0F = {or_result}\n");
+
+    // --- Bitwise XOR ---
+    var xor_result:i32 = 0xFF ^ 0x0F;
+    print("Bitwise XOR: 0xFF ^ 0x0F = {xor_result}\n");
+
+    // --- Bitwise NOT ---
+    var not_result:i32 = ~0;
+    print("Bitwise NOT: ~0 = {not_result}\n");
+
+    // --- Left shift ---
+    var lshift:i32 = 1 << 4;
+    print("Left shift:  1 << 4 = {lshift}\n");
+
+    // --- Right shift ---
+    var rshift:i32 = 256 >> 3;
+    print("Right shift: 256 >> 3 = {rshift}\n");
+
+    // --- Flags pattern ---
+    print("\n--- Flags pattern ---\n");
+    var FLAG_READ:u32  = 1 << 0;
+    var FLAG_WRITE:u32 = 1 << 1;
+    var FLAG_EXEC:u32  = 1 << 2;
+
+    var perms:u32 = FLAG_READ | FLAG_EXEC;
+    print("Permissions: {perms}\n");
+    print("Has READ:  {perms & FLAG_READ}\n");
+    print("Has WRITE: {perms & FLAG_WRITE}\n");
+    print("Has EXEC:  {perms & FLAG_EXEC}\n");
+
+    // Add write permission
+    perms = perms | FLAG_WRITE;
+    print("\nAfter adding WRITE: {perms}\n");
+    print("Has WRITE: {perms & FLAG_WRITE}\n");
+
+    // Remove exec permission (AND with inverted flag)
+    perms = perms & ~FLAG_EXEC;
+    print("\nAfter removing EXEC: {perms}\n");
+    print("Has EXEC: {perms & FLAG_EXEC}\n");
+
+    // Toggle read with XOR
+    perms = perms ^ FLAG_READ;
+    print("\nAfter toggling READ: {perms}\n");
+    print("Has READ: {perms & FLAG_READ}\n");
+
+    // --- Byte extraction ---
+    print("\n--- Byte extraction ---\n");
+    var val:i32 = 0xABCD;
+    var low:i32 = val & 0xFF;
+    var high:i32 = (val >> 8) & 0xFF;
+    print("0xABCD low byte:  {low}\n");
+    print("0xABCD high byte: {high}\n");
+
+    // --- Bit counting (popcount) ---
+    print("\n--- Bit counting ---\n");
+    var num:i32 = 0xFF;
+    var count:i32 = 0;
+    var tmp:i32 = num;
+    for (i = 0:31) {
+        if (tmp & 1) {
+            count = count + 1;
+        }
+        tmp = tmp >> 1;
+    }
+    print("Bits set in 0xFF: {count}\n");
+
+    // --- Power of two check ---
+    print("\n--- Power of two check ---\n");
+    var vals:i32[6] = {1, 2, 3, 4, 16, 255};
+    for (var v in vals) {
+        var is_pow2:i32 = 0;
+        if (v & (v - 1)) {
+            is_pow2 = 0;
+        } else {
+            is_pow2 = 1;
+        }
+        print("{v} is power of 2: {is_pow2}\n");
+    }
+
+    print("\nDone.\n");
+}

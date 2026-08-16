@@ -1,0 +1,23 @@
+// 34_build_directives.gx
+//
+// @link puts the link line in the source file, where it belongs. Wrap it
+// in #if (@os == ...) for libraries that only exist on one platform. The
+// file carries everything its build needs, no extra CLI flags.
+
+// Platform-conditional linking via #if - required for libs that only
+// exist on one OS. ucrtbase is Microsoft's Universal C Runtime: it lives
+// in Windows but doesn't exist on Linux/macOS, so an unconditional
+// @link("ucrtbase") would fail to link on POSIX.
+#if (@os == "windows") {
+    @link("ucrtbase")
+    @link("kernel32")
+}
+
+fn main() {
+    print("=== Build Directives (Phase 7) ===");
+    print("@link and @cflags are collected from source");
+    print("No CLI flags needed for linking!");
+    print("Done!");
+
+
+}

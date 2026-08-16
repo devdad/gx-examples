@@ -1,0 +1,81 @@
+// 45_json.gx
+//
+// Parse a JSON string, pull values out of it, then build a new document
+// from scratch and serialize both. The json module is a thin layer over
+// yyjson, a C library, so you hold handles into the document and every
+// call goes straight through. Parsed documents are read-only; building
+// happens on a separate mutable document. Free what you parse.
+
+import json
+
+fn main() {
+    // ---- Parsing JSON ----
+    var text = "{\"name\": \"Alice\", \"age\": 30, \"scores\": [95, 87, 92], \"active\": true}"
+
+    var doc = json.gx_json_parse(text.cstr, text.len, 0)
+    if (doc == 0) {
+        print("Failed to parse JSON\n")
+        return
+    }
+    defer json.gx_json_free(doc)
+
+    var r = json.gx_json_root(doc)
+
+    // ---- Reading values ----
+    var name = json.gx_json_get_str(json.gx_json_obj_get(r, "name"))
+    var age  = json.gx_json_get_int(json.gx_json_obj_get(r, "age"))
+    var active = json.gx_json_get_bool(json.gx_json_obj_get(r, "active"))
+    print("Name: {name}\n")
+    print("Age:  {age}\n")
+    print("Active: {active}\n")
+
+    // ---- Array access ----
+    var scores = json.gx_json_obj_get(r, "scores")
+    print("Scores:\n")
+    // Array access by index
+    var s0 = json.gx_json_get_int(json.gx_json_arr_get(scores, 0))
+    var s1 = json.gx_json_get_int(json.gx_json_arr_get(scores, 1))
+    var s2 = json.gx_json_get_int(json.gx_json_arr_get(scores, 2))
+    print("  [0] = {s0}\n")
+    print("  [1] = {s1}\n")
+    print("  [2] = {s2}\n")
+
+    // ---- Type inspection ----
+    var name_type = json.gx_json_type_desc(json.gx_json_obj_get(r, "name"))
+    var age_type = json.gx_json_type_desc(json.gx_json_obj_get(r, "age"))
+    var scores_type = json.gx_json_type_desc(scores)
+    print("Type of name: {name_type}\n")
+    print("Type of age:  {age_type}\n")
+    print("Type of scores: {scores_type}\n")
+
+    // ---- Serialize back (pretty) ----
+    var pretty = json.gx_json_write(doc, json.WRITE_PRETTY)
+    print("\nPretty printed:\n{pretty}\n")
+
+    // ---- Build JSON from scratch ----
+    print("--- Building JSON ---\n")
+    var mdoc = json.gx_json_new_doc()
+    defer json.gx_json_mut_free(mdoc)
+
+    var obj = json.gx_json_new_obj(mdoc)
+    json.gx_json_set_root(mdoc, obj)
+
+    json.gx_json_obj_add_str(mdoc, obj, "language", "GX")
+    json.gx_json_obj_add_int(mdoc, obj, "version", 2)
+    json.gx_json_obj_add_bool(mdoc, obj, "fast", true)
+    json.gx_json_obj_add_float(mdoc, obj, "pi", 3.14159)
+
+    // Nested array
+    var arr = json.gx_json_obj_add_arr(mdoc, obj, "features")
+    json.gx_json_arr_add_str(mdoc, arr, "transpiles to C")
+    json.gx_json_arr_add_str(mdoc, arr, "zero-cost abstractions")
+    json.gx_json_arr_add_str(mdoc, arr, "yyjson powered")
+
+    // Nested object
+    var meta = json.gx_json_obj_add_obj(mdoc, obj, "meta")
+    json.gx_json_obj_add_str(mdoc, meta, "author", "GX Team")
+    json.gx_json_obj_add_int(mdoc, meta, "year", 2026)
+
+    var result = json.gx_json_mut_write(mdoc, json.WRITE_PRETTY)
+    print("{result}\n")
+}

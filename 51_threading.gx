@@ -1,0 +1,57 @@
+// 51_threading.gx
+//
+// Eight worker threads each push 100,000 ints into one chan<i32> while
+// main drains it, then joins them all and checks the count. The channel
+// is bounded at 64 slots, so producers block when it fills and wake as
+// main reads. That back-pressure is the load-bearing part. No atomics,
+// no raw shared memory, the channel is the only thing the threads share.
+
+import threading
+
+const NUM_THREADS = 8
+const ITERS_PER_THREAD = 100000
+
+var g_ch: chan<i32>(capacity = 64)
+
+fn worker:i32(arg: *void) {
+    var i: i32 = 0
+    while (i < ITERS_PER_THREAD) {
+        g_ch.send(i)
+        i = i + 1
+    }
+    return 0
+}
+
+fn main() {
+    // Spawn N workers - typed handle array, no *void in user code.
+    var threads: Thread[8]
+    var i: i32 = 0
+    while (i < NUM_THREADS) {
+        gx_thread_start(&threads[i], worker, 0)
+        i = i + 1
+    }
+
+    // Drain in parallel with workers - required for back-pressure
+    // to release. Producers block on full sends until we recv.
+    var got_count: i32 = 0
+    var expected: i32 = NUM_THREADS * ITERS_PER_THREAD
+    var v: i32
+    while (got_count < expected) {
+        if (g_ch.recv(&v)) { got_count = got_count + 1 }
+    }
+
+    // All values delivered - workers are done. Join.
+    i = 0
+    while (i < NUM_THREADS) {
+        gx_thread_join(threads[i])
+        i = i + 1
+    }
+    g_ch.close()
+
+    print("received = {got_count}, expected = {expected}\n")
+    if (got_count == expected) {
+        print("smoke test PASSED\n")
+    } else {
+        print("smoke test FAILED\n")
+    }
+}

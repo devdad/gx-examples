@@ -1,0 +1,60 @@
+// 54_f16.gx
+//
+// f16 is a 16-bit IEEE-754 float, the half type every shading language
+// has. It is a storage type: vertex attributes, weight tables, big buffers
+// where 2-byte elements halve the bandwidth. Arithmetic promotes to f32
+// and narrows back on store, matching C's usual conversions. The C backend
+// lowers it to _Float16 where the compiler has one, falling back to float;
+// the LLVM backend always uses a true half.
+
+// f16 globals - the literal is f32, narrowed into the annotated f16.
+const HALF_ONE:f16  = 1.0
+const HALF_PI:f16   = 3.140625   // nearest binary16 value to pi
+
+// f16 fields pack tightly - a Vertex here is 6 bytes with native f16.
+struct Vertex {
+    x: f16
+    y: f16
+    z: f16
+}
+
+// f16 arguments and return type. Arithmetic on f16 promotes to f32
+// (matching C's usual conversions), and narrows back on the typed return.
+fn midpoint:f16(a: f16, b: f16) {
+    var m: f16 = (a + b) * 0.5
+    return m
+}
+
+fn main() {
+    print("=== f16 / half precision ===\n")
+
+    var h: f16 = 2.5
+    print("h         = {h}\n")
+    print("HALF_ONE  = {HALF_ONE}\n")
+    print("HALF_PI   = {HALF_PI}\n")
+
+    // f16 arithmetic - the result of a + b is f32, stored back into f16.
+    var a: f16 = 1.0
+    var b: f16 = 4.0
+    var mid: f16 = midpoint(a, b)
+    print("midpoint(1.0, 4.0) = {mid}\n")
+
+    // f16 in a struct, ready to hand to a GPU vertex buffer.
+    var v: Vertex
+    v.x = 0.5
+    v.y = -0.5
+    v.z = 1.0
+    print("Vertex = ({v.x}, {v.y}, {v.z})\n")
+
+    // f16 fixed-size array - a tightly packed weight table.
+    var weights: f16[4]
+    weights[0] = 0.1
+    weights[1] = 0.2
+    weights[2] = 0.3
+    weights[3] = 0.4
+    var sum: f16 = 0.0
+    for (i = 0:3) {
+        sum = sum + weights[i]
+    }
+    print("weight sum = {sum}\n")
+}

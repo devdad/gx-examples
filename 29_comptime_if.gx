@@ -1,0 +1,50 @@
+// 29_comptime_if.gx
+//
+// #if is decided during compilation, so the losing branch never reaches
+// the output. Conditions can read built-ins like @os, @debug, and @opt,
+// or your own consts. It covers what you would reach for the C
+// preprocessor for, without a second language on top.
+
+// Platform detection with @os
+#if (@os == "windows") {
+    const PLATFORM = "Windows";
+}
+#else {
+    const PLATFORM = "Other";
+}
+
+fn main() {
+    print("Platform: {PLATFORM}");
+
+    // Statement-level #if with @os
+    #if (@os == "windows") {
+        print("Running on Windows");
+    }
+    #else {
+        print("Running on non-Windows");
+    }
+
+    // #if with user const
+    const ENABLE_FEATURE = true;
+    #if (ENABLE_FEATURE) {
+        print("Feature enabled");
+    }
+
+    // @debug check (false unless --debug flag)
+    #if (@debug) {
+        print("Debug mode ON");
+    }
+    #else {
+        print("Debug mode OFF");
+    }
+
+    // @opt level check
+    #if (@opt > 0) {
+        print("Optimized build");
+    }
+    #else {
+        print("Unoptimized build");
+    }
+
+    print("Done!");
+}

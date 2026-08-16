@@ -1,0 +1,34 @@
+// 44_microaudio.gx
+//
+// Load a WAV file, set the volume, play it, free it. That is the whole
+// microaudio API surface this needs. Sound does not have to be complicated.
+
+import microaudio.audio
+
+fn main() {
+    audio_init()
+    defer audio_shutdown()
+
+    // Load a WAV file (place a .wav file next to the executable)
+    var snd = audio_load("test.wav")
+    if (snd < 0) {
+        print("Could not load test.wav\n")
+        print("Place a WAV file named test.wav in the working directory.\n")
+        return
+    }
+
+    print("Sound loaded (id={snd.str()})\n")
+
+    // Set volume to 80%
+    audio_set_volume(snd, 0.8)
+
+    // Play the sound
+    audio_play(snd)
+    print("Playing... press Enter to stop.\n")
+
+    input()
+
+    audio_stop(snd)
+    audio_free(snd)
+    print("Done.\n")
+}

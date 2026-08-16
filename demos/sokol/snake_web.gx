@@ -1,0 +1,436 @@
+// snake_web.gx
+//
+// The snake game again, as a web build. GX targets the browser too,
+// so this is the same game with WebGL2 shaders and swipe controls
+// for touch screens.
+
+import sokol.app
+import sokol.gfx
+import sokol.glue
+
+// Grid: 20x20 cells, max snake length 400
+var g_sx:i32[400]
+var g_sy:i32[400]
+var g_slen:i32 = 3
+var g_dir:i32 = 1        // 0=up, 1=right, 2=down, 3=left
+var g_next_dir:i32 = 1
+var g_food_x:i32 = 10
+var g_food_y:i32 = 10
+var g_score:i32 = 0
+var g_alive:i32 = 1
+var g_tick:i32 = 0
+var g_speed:i32 = 8
+var g_rng:i32 = 42
+var g_started:i32 = 0
+
+// Touch input state (for swipe detection on mobile/iPad)
+var g_touch_x:f32 = 0.0
+var g_touch_y:f32 = 0.0
+var g_touching:i32 = 0
+
+// Vertex buffer (dynamic)
+var g_verts:f32[12600]
+var g_vert_count:i32 = 0
+var g_num_verts:i32 = 0
+
+// Sokol resources
+var g_pip:sg_pipeline
+var g_bind:sg_bindings
+var g_vbuf:sg_buffer
+
+// GLSL ES 300 shaders (WebGL2)
+var g_vs:cstr = "#version 300 es\nin vec2 position;\nin vec3 color0;\nout vec3 color;\nvoid main() { gl_Position = vec4(position, 0.0, 1.0); color = color0; }\n"
+var g_fs:cstr = "#version 300 es\nprecision mediump float;\nin vec3 color;\nout vec4 frag_color;\nvoid main() { frag_color = vec4(color, 1.0); }\n"
+
+// PRNG
+fn rng_next:i32() {
+    g_rng = g_rng * 1103515245 + 12345
+    var v:i32 = (g_rng / 65536) & 32767
+    return v
+}
+
+fn rng_range:i32(max:i32) {
+    var v:i32 = rng_next()
+    if (max <= 0) { return 0 }
+    return v % max
+}
+
+// Vertex helpers
+fn push_vert(x:f32, y:f32, r:f32, g:f32, b:f32) {
+    g_verts[g_vert_count] = x;      g_vert_count = g_vert_count + 1
+    g_verts[g_vert_count] = y;      g_vert_count = g_vert_count + 1
+    g_verts[g_vert_count] = r;      g_vert_count = g_vert_count + 1
+    g_verts[g_vert_count] = g;      g_vert_count = g_vert_count + 1
+    g_verts[g_vert_count] = b;      g_vert_count = g_vert_count + 1
+}
+
+fn push_quad(gx:i32, gy:i32, r:f32, g:f32, b:f32) {
+    var cell:f32 = 1.9 / 20.0
+    var gap:f32 = 0.01
+    var x0:f32 = -0.95 + gx * cell + gap
+    var y0:f32 = 0.95 - gy * cell - gap
+    var x1:f32 = x0 + cell - gap * 2.0
+    var y1:f32 = y0 - cell + gap * 2.0
+
+    push_vert(x0, y0, r, g, b)
+    push_vert(x1, y0, r, g, b)
+    push_vert(x0, y1, r, g, b)
+    push_vert(x1, y0, r, g, b)
+    push_vert(x1, y1, r, g, b)
+    push_vert(x0, y1, r, g, b)
+}
+
+// Game logic
+fn game_reset() {
+    g_slen = 3
+    g_dir = 1
+    g_next_dir = 1
+    g_score = 0
+    g_alive = 1
+    g_tick = 0
+    g_speed = 8
+    g_started = 1
+    g_sx[0] = 10; g_sy[0] = 10
+    g_sx[1] = 9;  g_sy[1] = 10
+    g_sx[2] = 8;  g_sy[2] = 10
+    spawn_food()
+}
+
+fn spawn_food() {
+    var valid:i32 = 0
+    while (valid == 0) {
+        g_food_x = rng_range(20)
+        g_food_y = rng_range(20)
+        valid = 1
+        var i:i32 = 0
+        while (i < g_slen) {
+            if (g_sx[i] == g_food_x) {
+                if (g_sy[i] == g_food_y) {
+                    valid = 0
+                }
+            }
+            i = i + 1
+        }
+    }
+}
+
+fn game_tick() {
+    if (g_alive == 0) { return }
+    if (g_started == 0) { return }
+
+    g_tick = g_tick + 1
+    if (g_tick < g_speed) { return }
+    g_tick = 0
+
+    g_dir = g_next_dir
+    var hx:i32 = g_sx[0]
+    var hy:i32 = g_sy[0]
+    if (g_dir == 0) { hy = hy - 1 }
+    if (g_dir == 1) { hx = hx + 1 }
+    if (g_dir == 2) { hy = hy + 1 }
+    if (g_dir == 3) { hx = hx - 1 }
+
+    if (hx < 0)  { g_alive = 0; return }
+    if (hx > 19) { g_alive = 0; return }
+    if (hy < 0)  { g_alive = 0; return }
+    if (hy > 19) { g_alive = 0; return }
+
+    var i:i32 = 0
+    while (i < g_slen) {
+        if (g_sx[i] == hx) {
+            if (g_sy[i] == hy) {
+                g_alive = 0
+                return
+            }
+        }
+        i = i + 1
+    }
+
+    var ate:i32 = 0
+    if (hx == g_food_x) {
+        if (hy == g_food_y) {
+            ate = 1
+            g_score = g_score + 1
+            if (g_score % 5 == 0) {
+                if (g_speed > 3) {
+                    g_speed = g_speed - 1
+                }
+            }
+        }
+    }
+
+    if (ate == 1) {
+        var j:i32 = g_slen
+        while (j > 0) {
+            g_sx[j] = g_sx[j - 1]
+            g_sy[j] = g_sy[j - 1]
+            j = j - 1
+        }
+        g_slen = g_slen + 1
+    } else {
+        var j:i32 = g_slen - 1
+        while (j > 0) {
+            g_sx[j] = g_sx[j - 1]
+            g_sy[j] = g_sy[j - 1]
+            j = j - 1
+        }
+    }
+
+    g_sx[0] = hx
+    g_sy[0] = hy
+    if (ate == 1) { spawn_food() }
+}
+
+// Rendering
+fn build_vertices() {
+    g_vert_count = 0
+
+    if (g_started == 0) {
+        // Title screen: "SNAKE" in cells
+        push_quad(2, 6, 0.2, 0.8, 0.2);  push_quad(3, 6, 0.2, 0.8, 0.2);  push_quad(4, 6, 0.2, 0.8, 0.2)
+        push_quad(2, 7, 0.2, 0.8, 0.2)
+        push_quad(2, 8, 0.2, 0.8, 0.2);  push_quad(3, 8, 0.2, 0.8, 0.2);  push_quad(4, 8, 0.2, 0.8, 0.2)
+        push_quad(4, 9, 0.2, 0.8, 0.2)
+        push_quad(2, 10, 0.2, 0.8, 0.2); push_quad(3, 10, 0.2, 0.8, 0.2); push_quad(4, 10, 0.2, 0.8, 0.2)
+
+        push_quad(6, 6, 0.2, 0.8, 0.2);  push_quad(6, 7, 0.2, 0.8, 0.2);  push_quad(6, 8, 0.2, 0.8, 0.2)
+        push_quad(6, 9, 0.2, 0.8, 0.2);  push_quad(6, 10, 0.2, 0.8, 0.2)
+        push_quad(7, 7, 0.2, 0.8, 0.2)
+        push_quad(8, 8, 0.2, 0.8, 0.2)
+        push_quad(9, 6, 0.2, 0.8, 0.2);  push_quad(9, 7, 0.2, 0.8, 0.2);  push_quad(9, 8, 0.2, 0.8, 0.2)
+        push_quad(9, 9, 0.2, 0.8, 0.2);  push_quad(9, 10, 0.2, 0.8, 0.2)
+
+        push_quad(12, 6, 0.2, 0.8, 0.2); push_quad(13, 6, 0.2, 0.8, 0.2)
+        push_quad(11, 7, 0.2, 0.8, 0.2); push_quad(14, 7, 0.2, 0.8, 0.2)
+        push_quad(11, 8, 0.2, 0.8, 0.2); push_quad(12, 8, 0.2, 0.8, 0.2)
+        push_quad(13, 8, 0.2, 0.8, 0.2); push_quad(14, 8, 0.2, 0.8, 0.2)
+        push_quad(11, 9, 0.2, 0.8, 0.2); push_quad(14, 9, 0.2, 0.8, 0.2)
+        push_quad(11, 10, 0.2, 0.8, 0.2); push_quad(14, 10, 0.2, 0.8, 0.2)
+
+        push_quad(16, 6, 0.2, 0.8, 0.2);  push_quad(16, 7, 0.2, 0.8, 0.2)
+        push_quad(16, 8, 0.2, 0.8, 0.2);  push_quad(16, 9, 0.2, 0.8, 0.2)
+        push_quad(16, 10, 0.2, 0.8, 0.2)
+        push_quad(18, 6, 0.2, 0.8, 0.2);  push_quad(17, 7, 0.2, 0.8, 0.2)
+        push_quad(17, 8, 0.2, 0.8, 0.2)
+        push_quad(17, 9, 0.2, 0.8, 0.2);  push_quad(18, 10, 0.2, 0.8, 0.2)
+
+        push_quad(6, 14, 0.5, 0.5, 0.5)
+        push_quad(8, 14, 0.5, 0.5, 0.5)
+        push_quad(10, 14, 0.5, 0.5, 0.5)
+        push_quad(12, 14, 0.5, 0.5, 0.5)
+        push_quad(14, 14, 0.5, 0.5, 0.5)
+
+        g_num_verts = g_vert_count / 5
+        return
+    }
+
+    // Food
+    var food_r:f32 = 0.9
+    var food_g:f32 = 0.15
+    var food_b:f32 = 0.15
+    if (g_tick % 4 < 2) {
+        food_r = 1.0
+        food_g = 0.25
+        food_b = 0.2
+    }
+    push_quad(g_food_x, g_food_y, food_r, food_g, food_b)
+
+    // Snake body
+    var i:i32 = g_slen - 1
+    while (i >= 0) {
+        var t:f32 = 0.3
+        if (g_slen > 1) {
+            t = 0.3 + 0.6 * (1.0 - i * 1.0 / g_slen)
+        }
+        var sr:f32 = 0.1
+        var sg:f32 = t
+        var sb:f32 = 0.1
+        if (i == 0) {
+            sr = 0.2
+            sg = 0.95
+            sb = 0.2
+        }
+        if (g_alive == 0) {
+            sr = 0.7
+            sg = 0.15
+            sb = 0.1
+            if (i == 0) {
+                sr = 1.0
+                sg = 0.2
+                sb = 0.15
+            }
+        }
+        push_quad(g_sx[i], g_sy[i], sr, sg, sb)
+        i = i - 1
+    }
+
+    g_num_verts = g_vert_count / 5
+}
+
+// Sokol callbacks
+@c_abi
+fn init() {
+    var gfx_desc:sg_desc
+    gfx_desc.environment = sglue_environment()
+    sg_setup(&gfx_desc)
+
+    var buf_desc:sg_buffer_desc
+    buf_desc.size = 50400
+    buf_desc.usage.stream_update = 1
+    g_vbuf = sg_make_buffer(&buf_desc)
+    g_bind.vertex_buffers[0] = g_vbuf
+
+    var shd_desc:sg_shader_desc
+    shd_desc.vertex_func.source = g_vs
+    shd_desc.fragment_func.source = g_fs
+    shd_desc.attrs[0].glsl_name = "position"
+    shd_desc.attrs[1].glsl_name = "color0"
+    var shd:sg_shader = sg_make_shader(&shd_desc)
+
+    var pip_desc:sg_pipeline_desc
+    pip_desc.shader = shd
+    pip_desc.layout.attrs[0].format = 2
+    pip_desc.layout.attrs[1].format = 3
+    g_pip = sg_make_pipeline(&pip_desc)
+
+    g_rng = 7919
+}
+
+@c_abi
+fn frame() {
+    game_tick()
+    build_vertices()
+
+    var range:sg_range
+    range.ptr = &g_verts[0]
+    range.size = g_vert_count * 4
+    if (g_vert_count > 0) {
+        sg_update_buffer(g_vbuf, &range)
+    }
+
+    var bg_r:f32 = 0.08
+    var bg_g:f32 = 0.08
+    var bg_b:f32 = 0.1
+    if (g_alive == 0) {
+        bg_r = 0.15
+        bg_g = 0.05
+        bg_b = 0.05
+    }
+
+    var pass:sg_pass
+    pass.action.colors[0].load_action = 1
+    pass.action.colors[0].clear_value.r = bg_r
+    pass.action.colors[0].clear_value.g = bg_g
+    pass.action.colors[0].clear_value.b = bg_b
+    pass.action.colors[0].clear_value.a = 1.0
+    pass.swapchain = sglue_swapchain()
+
+    sg_begin_pass(&pass)
+    if (g_num_verts > 0) {
+        sg_apply_pipeline(g_pip)
+        sg_apply_bindings(&g_bind)
+        sg_draw(0, g_num_verts, 1)
+    }
+    sg_end_pass()
+    sg_commit()
+}
+
+@c_abi
+fn event(ev: const *sapp_event) {
+    if (ev.type == EVENTTYPE_KEY_DOWN) {
+        if (ev.key_code == KEYCODE_SPACE) {
+            if (g_started == 0) { game_reset() }
+            elif (g_alive == 0) { game_reset() }
+        }
+        if (ev.key_code == KEYCODE_ENTER) {
+            if (g_started == 0) { game_reset() }
+            elif (g_alive == 0) { game_reset() }
+        }
+        if (g_alive == 1) {
+            if (ev.key_code == KEYCODE_UP)    { if (g_dir != 2) { g_next_dir = 0 } }
+            if (ev.key_code == KEYCODE_W)     { if (g_dir != 2) { g_next_dir = 0 } }
+            if (ev.key_code == KEYCODE_RIGHT) { if (g_dir != 3) { g_next_dir = 1 } }
+            if (ev.key_code == KEYCODE_D)     { if (g_dir != 3) { g_next_dir = 1 } }
+            if (ev.key_code == KEYCODE_DOWN)  { if (g_dir != 0) { g_next_dir = 2 } }
+            if (ev.key_code == KEYCODE_S)     { if (g_dir != 0) { g_next_dir = 2 } }
+            if (ev.key_code == KEYCODE_LEFT)  { if (g_dir != 1) { g_next_dir = 3 } }
+            if (ev.key_code == KEYCODE_A)     { if (g_dir != 1) { g_next_dir = 3 } }
+        }
+    }
+
+    // Touch: swipe to change direction, tap to start/restart
+    if (ev.type == EVENTTYPE_TOUCHES_BEGAN) {
+        g_touch_x = ev.touches[0].pos_x
+        g_touch_y = ev.touches[0].pos_y
+        g_touching = 1
+    }
+    if (ev.type == EVENTTYPE_TOUCHES_ENDED) {
+        if (g_touching == 1) {
+            var dx:f32 = ev.touches[0].pos_x - g_touch_x
+            var dy:f32 = ev.touches[0].pos_y - g_touch_y
+            var adx:f32 = dx
+            var ady:f32 = dy
+            if (adx < 0.0) { adx = 0.0 - adx }
+            if (ady < 0.0) { ady = 0.0 - ady }
+
+            if (adx < 20.0) {
+                if (ady < 20.0) {
+                    if (g_started == 0) { game_reset() }
+                    elif (g_alive == 0) { game_reset() }
+                }
+            }
+
+            if (adx > 20.0) {
+                if (ady > 20.0) {
+                    if (adx > ady) {
+                        if (g_alive == 1) {
+                            if (dx > 0.0) { if (g_dir != 3) { g_next_dir = 1 } }
+                            else { if (g_dir != 1) { g_next_dir = 3 } }
+                        }
+                    } else {
+                        if (g_alive == 1) {
+                            if (dy > 0.0) { if (g_dir != 0) { g_next_dir = 2 } }
+                            else { if (g_dir != 2) { g_next_dir = 0 } }
+                        }
+                    }
+                }
+            }
+            if (adx > 20.0) {
+                if (ady <= 20.0) {
+                    if (g_alive == 1) {
+                        if (dx > 0.0) { if (g_dir != 3) { g_next_dir = 1 } }
+                        else { if (g_dir != 1) { g_next_dir = 3 } }
+                    }
+                }
+            }
+            if (ady > 20.0) {
+                if (adx <= 20.0) {
+                    if (g_alive == 1) {
+                        if (dy > 0.0) { if (g_dir != 0) { g_next_dir = 2 } }
+                        else { if (g_dir != 2) { g_next_dir = 0 } }
+                    }
+                }
+            }
+        }
+        g_touching = 0
+    }
+}
+
+@c_abi
+fn cleanup() {
+    sg_shutdown()
+}
+
+fn main() {
+    var desc:sapp_desc
+    desc.init_cb = init
+    desc.frame_cb = frame
+    desc.event_cb = event
+    desc.cleanup_cb = cleanup
+    desc.width = 640
+    desc.height = 640
+    desc.sample_count = 1
+    desc.swap_interval = 1
+    desc.window_title = "GX Snake"
+    sapp_run(&desc)
+}

@@ -1,0 +1,58 @@
+// 46_time.gx
+//
+// Dates, formatting, a nanosecond clock, and sleep from the time module.
+// The output is deterministic on purpose: dates come from a fixed epoch
+// and the timing checks print pass or fail instead of raw numbers, so
+// two runs produce identical output.
+
+import time
+
+fn main() {
+    // ---- Date/time components against a fixed epoch ----
+    // Jan 1, 2026 00:00:00 local time. Deterministic across runs.
+    var epoch = time.gx_time_make(2026, 1, 1, 0, 0, 0)
+
+    var y = time.gx_time_year(epoch)
+    var mo = time.gx_time_month(epoch)
+    var d = time.gx_time_day(epoch)
+    print("Fixed epoch year/month/day: {y}-{mo}-{d}\n")
+
+    // ---- Formatting against the fixed epoch ----
+    var formatted = time.gx_time_format(epoch, "%Y-%m-%d %H:%M:%S")
+    print("Formatted: {formatted}\n")
+
+    var day_name = time.gx_time_format(epoch, "%A")
+    print("Weekday name: {day_name}\n")
+
+    // ---- Benchmarking: verify only that elapsed > 0, not the value ----
+    print("\n--- Benchmark ---\n")
+    var t0 = time.gx_time_now_ns()
+    var sum = 0
+    for (i = 0 : 999999) {
+        sum = sum + i
+    }
+    var t1 = time.gx_time_now_ns()
+    var ms = time.gx_time_elapsed_ms(t0, t1)
+    print("Sum of 0..999999 = {sum}\n")
+    if (ms >= 0.0) {
+        print("Elapsed: measurable\n")
+    } else {
+        print("Elapsed: ERROR negative duration\n")
+    }
+
+    // ---- Sleep: verify only that we slept at least ~95ms ----
+    print("\n--- Sleep test ---\n")
+    var s0 = time.gx_time_now_ns()
+    time.gx_time_sleep_ms(100)
+    var s1 = time.gx_time_now_ns()
+    var slept = time.gx_time_elapsed_ms(s0, s1)
+    if (slept >= 95.0) {
+        print("Slept ~100ms: OK (>= 95ms actually elapsed)\n")
+    } else {
+        print("Slept ~100ms: FAIL (only {slept} ms)\n")
+    }
+
+    // ---- Named date ----
+    var new_year = time.gx_time_format(epoch, "%Y-%m-%d %H:%M:%S (%A)")
+    print("\nNew Year 2026: {new_year}\n")
+}

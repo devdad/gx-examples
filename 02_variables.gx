@@ -1,0 +1,33 @@
+// 02_variables.gx
+//
+// var infers the type from the initializer, or you write it out with a colon.
+// Either way the type is fixed at compile time. {expr} inside a string prints
+// the value, and .str() converts a number when you want the text itself.
+
+fn main() {
+    // Type inference with var
+    var a = 10;
+    var b = 3.14;
+    var name = "GX";
+
+    // Explicit types
+    var x:i32 = 100;
+    var y:f32 = 2.718;
+    var big:i64 = 9999999999;
+    var precise:f64 = 3.14159265358979;
+
+    // String interpolation
+    print("a={a}\n");
+    print("b={b}\n");
+    print("name={name}\n");
+    print("x={x} y={y}\n");
+    print("big={big}\n");
+    print("precise={precise}\n");
+
+    print("i32 as string: " + x.str() + "\n");
+    print("f64 as string: " + precise.str() + "\n");
+
+    // Assignment
+    x = x + 1;
+    print("x after +1: {x}\n");
+}

@@ -1,0 +1,92 @@
+// triangle_web.gx
+//
+// The same triangle, built for the browser. GX compiles for the web
+// target too, so the only real difference from triangle.gx is the
+// shader source, GLSL ES 300 instead of GLSL 330.
+@backend("llvm-clang")
+import sokol.app
+import sokol.gfx
+import sokol.glue
+
+// Vertex data: 3 vertices * (2 pos + 3 color) = 15 floats
+var g_vertices:f32[15]
+
+// Global state
+var g_pip:sg_pipeline
+var g_bind:sg_bindings
+
+// GLSL ES 300 shaders (WebGL2)
+var g_vs_source:cstr = "#version 300 es\nin vec2 position;\nin vec3 color0;\nout vec3 color;\nvoid main() { gl_Position = vec4(position, 0.0, 1.0); color = color0; }\n"
+var g_fs_source:cstr = "#version 300 es\nprecision mediump float;\nin vec3 color;\nout vec4 frag_color;\nvoid main() { frag_color = vec4(color, 1.0); }\n"
+
+@c_abi
+fn init() {
+    var gfx_desc:sg_desc
+    gfx_desc.environment = sglue_environment()
+    sg_setup(&gfx_desc)
+
+    // Top vertex (red)
+    g_vertices[0] = 0.0;   g_vertices[1] = 0.5
+    g_vertices[2] = 1.0;   g_vertices[3] = 0.0;   g_vertices[4] = 0.0
+    // Right vertex (green)
+    g_vertices[5] = 0.5;   g_vertices[6] = -0.5
+    g_vertices[7] = 0.0;   g_vertices[8] = 1.0;   g_vertices[9] = 0.0
+    // Left vertex (blue)
+    g_vertices[10] = -0.5; g_vertices[11] = -0.5
+    g_vertices[12] = 0.0;  g_vertices[13] = 0.0;  g_vertices[14] = 1.0
+
+    var buf_desc:sg_buffer_desc
+    buf_desc.data.ptr = &g_vertices[0]
+    buf_desc.data.size = 60
+    var vbuf:sg_buffer = sg_make_buffer(&buf_desc)
+    g_bind.vertex_buffers[0] = vbuf
+
+    var shd_desc:sg_shader_desc
+    shd_desc.vertex_func.source = g_vs_source
+    shd_desc.fragment_func.source = g_fs_source
+    shd_desc.attrs[0].glsl_name = "position"
+    shd_desc.attrs[1].glsl_name = "color0"
+    var shd:sg_shader = sg_make_shader(&shd_desc)
+
+    var pip_desc:sg_pipeline_desc
+    pip_desc.shader = shd
+    pip_desc.layout.attrs[0].format = 2  // SG_VERTEXFORMAT_FLOAT2
+    pip_desc.layout.attrs[1].format = 3  // SG_VERTEXFORMAT_FLOAT3
+    g_pip = sg_make_pipeline(&pip_desc)
+}
+
+@c_abi
+fn frame() {
+    var pass:sg_pass
+    pass.action.colors[0].load_action = 1
+    pass.action.colors[0].clear_value.r = 0.1
+    pass.action.colors[0].clear_value.g = 0.1
+    pass.action.colors[0].clear_value.b = 0.15
+    pass.action.colors[0].clear_value.a = 1.0
+    pass.swapchain = sglue_swapchain()
+
+    sg_begin_pass(&pass)
+    sg_apply_pipeline(g_pip)
+    sg_apply_bindings(&g_bind)
+    sg_draw(0, 3, 1)
+    sg_end_pass()
+    sg_commit()
+}
+
+@c_abi
+fn cleanup() {
+    sg_shutdown()
+}
+
+fn main() {
+    var desc:sapp_desc
+    desc.init_cb = init
+    desc.frame_cb = frame
+    desc.cleanup_cb = cleanup
+    desc.width = 800
+    desc.height = 600
+    desc.sample_count = 1
+    desc.swap_interval = 1
+    desc.window_title = "GX Triangle"
+    sapp_run(&desc)
+}

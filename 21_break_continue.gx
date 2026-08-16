@@ -1,0 +1,57 @@
+// 21_break_continue.gx
+//
+// break and continue in both for and while loops, exactly like C.
+// break leaves the loop, continue jumps to the next iteration.
+// Nothing new to learn here, which is the point.
+
+fn main() {
+    // Break: exit loop early
+    print("Break test: ");
+    for (i = 0:20) {
+        if (i > 4) {
+            break;
+        }
+        print("{i} ");
+    }
+    print("\n");
+
+    // Continue: skip even numbers
+    print("Continue test: ");
+    for (i = 0:10) {
+        if (i % 2 == 0) {
+            continue;
+        }
+        print("{i} ");
+    }
+    print("\n");
+
+    var a:i32 = 10;
+    a++;
+    a--;
+    ++a;
+    --a;
+    print("a={a}\n");
+    // Break in while loop
+    print("While break: ");
+    var n:i32 = 0;
+    while (n < 100) {
+        if (n > 5) {
+            break;
+        }
+        print("{n} ");
+        n = n + 1;
+    }
+    print("\n");
+
+    // Continue in while loop
+    print("While continue: ");
+    var m:i32 = 0;
+    while (m < 10) {
+        m = m + 1;
+        if (m % 3 == 0) {
+            continue;
+        }
+        print("{m} ");
+    }
+    print("\n");
+}

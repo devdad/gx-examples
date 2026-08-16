@@ -1,0 +1,204 @@
+// 10_functions.gx
+//
+// Functions, recursion, and the pointer rules. A pointer parameter is
+// read-only unless you mark it out, so the signature says who can write
+// what. And functions cannot return pointers at all. In C that is how you
+// hand back a dead stack address, so GX removes the option. Return by
+// value or fill an out parameter instead.
+
+// ============================================================================
+// Part 1: Basic functions
+// ============================================================================
+
+fn add:i32(a: i32, b: i32) {
+    return a + b
+}
+
+fn larger:i32(a: i32, b: i32) {
+    if (a > b) { return a }
+    return b
+}
+
+fn factorial:i32(n: i32) {
+    if (n <= 1) { return 1 }
+    return n * factorial(n - 1)
+}
+
+fn greet(name: str) {
+    print("Hello, {name}!\n")
+}
+
+// ============================================================================
+// Part 2: Pointer parameters (read-only by default)
+// ============================================================================
+
+struct Vec3 {
+    x: f32
+    y: f32
+    z: f32
+}
+
+// Pointer parameter WITHOUT 'out' = read-only.
+// Transpiles to 'const Vec3*' in C.
+// You can READ fields through the pointer but CANNOT write.
+fn vec3_length:f32(v: *Vec3) {
+    // OK: reading fields
+    var x = v.x
+    var y = v.y
+    var z = v.z
+    // COMPILE ERROR if you tried: v.x = 0.0
+    // "Cannot write through read-only pointer"
+    return x * x + y * y + z * z  // squared length for simplicity
+}
+
+fn vec3_print(v: *Vec3) {
+    print("({v.x}, {v.y}, {v.z})\n")
+}
+
+// ============================================================================
+// Part 3: 'out' parameters - writable pointers
+// ============================================================================
+
+// 'out' marks the parameter as mutable. Only inside the function body can
+// you write through this pointer. Caller must pass with '&'.
+fn vec3_scale(out v: *Vec3, factor: f32) {
+    v.x = v.x * factor
+    v.y = v.y * factor
+    v.z = v.z * factor
+}
+
+fn vec3_set(out v: *Vec3, x: f32, y: f32, z: f32) {
+    v.x = x
+    v.y = y
+    v.z = z
+}
+
+// 'out' scalar parameter for multi-return values.
+// Return the success flag, write the result through the out pointer.
+fn safe_divide:bool(a: f32, b: f32, out result: f32) {
+    if (b == 0.0) {
+        return false
+    }
+    *result = a / b
+    return true
+}
+
+// Compute min and max in one pass using two out parameters.
+fn min_max(values: *Vec3, out lo: f32, out hi: f32) {
+    *lo = values.x;
+    *hi = values.x;
+    if (values.y < *lo) { *lo = values.y }
+    if (values.y > *hi) { *hi = values.y }
+    if (values.z < *lo) { *lo = values.z }
+    if (values.z > *hi) { *hi = values.z }
+}
+
+// ============================================================================
+// Part 4: Why GX disallows returning pointers
+// ============================================================================
+//
+// In C you can write this - and it's UNDEFINED BEHAVIOR:
+//
+//     int* make_value() {
+//         int x = 42;
+//         return &x;   // returns pointer to a dead stack variable
+//     }
+//
+// GX refuses to compile any function that returns a pointer type.
+// The rule is enforced at the type checker level - no exceptions.
+// Instead, you return the value by value, or pass an 'out' parameter:
+//
+//     fn make_value:i32()                   // return by value ✓
+//     fn make_value(out x: i32)             // write through out param ✓
+//     fn make_value:*i32()                  // ✗ COMPILE ERROR
+//
+// This eliminates an entire class of dangling-pointer bugs by construction.
+
+// CORRECT: return by value
+fn make_origin:Vec3() {
+    var v: Vec3
+    v.x = 0.0
+    v.y = 0.0
+    v.z = 0.0
+    return v
+}
+
+// CORRECT: fill an out parameter provided by the caller
+fn make_unit_x(out v: *Vec3) {
+    v.x = 1.0
+    v.y = 0.0
+    v.z = 0.0
+}
+
+// ============================================================================
+// main
+// ============================================================================
+
+fn main() {
+    print("=== Part 1: Basic functions ===\n")
+    var sum = add(10, 20)
+    print("add(10, 20) = {sum}\n")
+
+    var m = larger(42, 17)
+    print("larger(42, 17) = {m}\n")
+
+    print("\nFactorials:\n")
+    for (i = 1 : 6) {
+        print("  {i}! = {factorial(i)}\n")
+    }
+
+    greet("GX")
+
+    print("\n=== Part 2: Read-only pointer parameters ===\n")
+    var position: Vec3
+    position.x = 3.0
+    position.y = 4.0
+    position.z = 0.0
+
+    print("position = ")
+    vec3_print(&position)
+
+    var len_sq = vec3_length(&position)
+    print("length_squared = {len_sq}\n")
+    // vec3_length can only READ through its pointer - it can't modify 'position'
+
+    print("\n=== Part 3: out parameters (writable) ===\n")
+    var scaled = position      // copy
+    vec3_scale(&scaled, 2.0)   // 'out' lets vec3_scale write through the pointer
+    print("scaled = ")
+    vec3_print(&scaled)
+
+    var zeroed: Vec3
+    vec3_set(&zeroed, 7.0, 8.0, 9.0)
+    print("after set = ")
+    vec3_print(&zeroed)
+
+    // Multi-return via out param
+    var result: f32 = 0.0
+    if (safe_divide(10.0, 3.0, &result)) {
+        print("10 / 3 = {result}\n")
+    }
+    if (!safe_divide(5.0, 0.0, &result)) {
+        print("division by zero caught\n")
+    }
+
+    // Two out values from one call
+    var lo: f32 = 0.0
+    var hi: f32 = 0.0
+    min_max(&scaled, &lo, &hi)
+    print("min = {lo}, max = {hi}\n")
+
+    print("\n=== Part 4: No returning pointers ===\n")
+    // Returning by value - always safe, no dangling references
+    var origin = make_origin()
+    print("origin = ")
+    vec3_print(&origin)
+
+    // Or initialize via out param
+    var unit_x: Vec3
+    make_unit_x(&unit_x)
+    print("unit_x = ")
+    vec3_print(&unit_x)
+
+    print("\nDone!\n")
+}

@@ -1,0 +1,184 @@
+// logo_gx_anim.gx
+//
+// The GX logo, falling into place. Every non-background pixel of a
+// low-res PNG becomes a quad that drops in with a random delay, lands,
+// holds, fades out, and repeats. It loads website/resources/LogoLow.png
+// at runtime, so run it from a directory where that path resolves.
+
+import raylib
+
+const BLOCK_SIZE = 10           // pixel size of each quad on screen
+const MAX_QUADS = 4000
+
+struct Quad {
+    target_x: f32
+    target_y: f32
+    current_y: f32
+    velocity: f32
+    delay: i32       // frames to wait before starting to fall
+    landed: bool
+    r: u8
+    g: u8
+    b: u8
+}
+
+// Simple LCG for randomized delays
+var g_rng: i32 = 12345
+
+fn rand_range:i32(max: i32) {
+    g_rng = g_rng * 1103515245 + 12345
+    var v: i32 = (g_rng / 65536) & 32767
+    return v % max
+}
+
+var g_quads: Quad[4000]
+var g_quad_count: i32 = 0
+
+// Load logo image, sample every pixel, spawn a quad for each non-transparent one
+fn build_logo_from_image(img: Image, center_x: i32, center_y: i32) {
+    g_quad_count = 0
+
+    var img_w: i32 = (i32)img.width
+    var img_h: i32 = (i32)img.height
+    var total_w: i32 = img_w * BLOCK_SIZE
+    var total_h: i32 = img_h * BLOCK_SIZE
+    var start_x: i32 = center_x - total_w / 2
+    var start_y: i32 = center_y - total_h / 2
+
+    // Old-school chroma key: top-left pixel is the transparent color
+    var bg_color: Color = GetImageColor(img, 0, 0)
+
+    for (y = 0 : img_h - 1) {
+        for (x = 0 : img_w - 1) {
+            var c: Color = GetImageColor(img, x, y)
+            // Skip pixels matching the top-left (background) color
+            var is_bg: bool = false
+            if (c.r == bg_color.r) {
+                if (c.g == bg_color.g) {
+                    if (c.b == bg_color.b) {
+                        is_bg = true
+                    }
+                }
+            }
+            if (!is_bg) {
+                if (g_quad_count < MAX_QUADS) {
+                    g_quads[g_quad_count].target_x = (start_x + x * BLOCK_SIZE) * 1.0
+                    g_quads[g_quad_count].target_y = (start_y + y * BLOCK_SIZE) * 1.0
+                    // Start well above the screen
+                    g_quads[g_quad_count].current_y = 0.0 - 200.0 - (rand_range(300) * 1.0)
+                    g_quads[g_quad_count].velocity = 0.0
+                    // Random delay (0-90 frames) so quads fall in scattered order
+                    g_quads[g_quad_count].delay = rand_range(90)
+                    g_quads[g_quad_count].landed = false
+                    g_quads[g_quad_count].r = c.r
+                    g_quads[g_quad_count].g = c.g
+                    g_quads[g_quad_count].b = c.b
+                    g_quad_count = g_quad_count + 1
+                }
+            }
+        }
+    }
+}
+
+fn update_quads:bool() {
+    var all_landed: bool = true
+    for (i = 0 : g_quad_count - 1) {
+        if (!g_quads[i].landed) {
+            if (g_quads[i].delay > 0) {
+                g_quads[i].delay = g_quads[i].delay - 1
+                all_landed = false
+            } else {
+                g_quads[i].velocity = g_quads[i].velocity + 0.55
+                g_quads[i].current_y = g_quads[i].current_y + g_quads[i].velocity
+
+                if (g_quads[i].current_y >= g_quads[i].target_y) {
+                    g_quads[i].current_y = g_quads[i].target_y
+                    g_quads[i].landed = true
+                } else {
+                    all_landed = false
+                }
+            }
+        }
+    }
+    return all_landed
+}
+
+fn draw_quads(alpha: f32) {
+    for (i = 0 : g_quad_count - 1) {
+        // Skip quads still waiting for their delay to expire
+        if (g_quads[i].delay > 0) {
+            continue
+        }
+        var col: Color
+        col.r = g_quads[i].r
+        col.g = g_quads[i].g
+        col.b = g_quads[i].b
+        col.a = 255
+        var tint: Color = Fade(col, alpha)
+
+        var rec: Rectangle
+        rec.x = g_quads[i].target_x
+        rec.y = g_quads[i].current_y
+        rec.width = BLOCK_SIZE * 1.0
+        rec.height = BLOCK_SIZE * 1.0
+        DrawRectangleRec(rec, tint)
+    }
+}
+
+fn main() {
+    var screen_width: i32 = 800
+    var screen_height: i32 = 600
+
+    InitWindow(screen_width, screen_height, "GX logo animation")
+    SetTargetFPS(60)
+
+    // Load the low-res logo
+    var logo_img: Image = LoadImage("website/resources/LogoLow.png")
+
+    var bg: Color
+    bg.r = 8
+    bg.g = 15
+    bg.b = 35
+    bg.a = 255
+
+    var state: i32 = 0
+    var alpha: f32 = 1.0
+    var hold_timer: i32 = 0
+
+    build_logo_from_image(logo_img, screen_width / 2, screen_height / 2)
+
+    while (!WindowShouldClose()) {
+        if (state == 0) {
+            var landed: bool = update_quads()
+            if (landed) {
+                state = 1
+                hold_timer = 0
+            }
+        }
+        if (state == 1) {
+            hold_timer = hold_timer + 1
+            if (hold_timer > 120) { state = 2 }
+        }
+        if (state == 2) {
+            alpha = alpha - 0.015
+            if (alpha <= 0.0) {
+                alpha = 0.0
+                state = 3
+            }
+        }
+        if (state == 3) {
+            build_logo_from_image(logo_img, screen_width / 2, screen_height / 2)
+            alpha = 1.0
+            hold_timer = 0
+            state = 0
+        }
+
+        BeginDrawing()
+        ClearBackground(bg)
+        draw_quads(alpha)
+        EndDrawing()
+    }
+
+    UnloadImage(logo_img)
+    CloseWindow()
+}

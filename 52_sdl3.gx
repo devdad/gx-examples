@@ -1,0 +1,208 @@
+// 52_sdl3.gx
+//
+// A sideways Breakout in one file, rendered with SDL3. Bricks on the left,
+// your paddle on the right, up and down to move, ESC to quit. Clear the
+// wall and a new one appears. The sdl3 module binds the C API directly,
+// SDL_Event and SDL_FRect are the real structs, and vsync paces the loop
+// instead of SDL_Delay. Needs SDL3.dll beside the executable or on PATH.
+
+import sdl3
+
+const SCREEN_W: f32 = 800.0
+const SCREEN_H: f32 = 600.0
+const PADDLE_W: f32 = 14.0
+const PADDLE_H: f32 = 100.0
+const PADDLE_SPEED: f32 = 6.0
+const BALL_SIZE: f32 = 14.0
+
+// Brick wall - 5 columns × 8 rows on the left third of the screen.
+const BRICK_COLS: i32 = 5
+const BRICK_ROWS: i32 = 8
+const BRICK_W: f32 = 40.0
+const BRICK_H: f32 = 50.0
+const BRICK_GAP: f32 = 4.0
+const BRICK_X0: f32 = 20.0
+const BRICK_Y0: f32 = 80.0
+const BRICK_COUNT: i32 = 40   // BRICK_COLS * BRICK_ROWS
+
+fn clamp_paddle:f32(y: f32) {
+    if (y < 0.0) { return 0.0 }
+    var max_y: f32 = SCREEN_H - PADDLE_H
+    if (y > max_y) { return max_y }
+    return y
+}
+
+fn main() {
+    var ok: bool = true
+    var window: *void = null
+    var renderer: *void = null
+
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        print("SDL_Init failed: {SDL_GetError()}\n")
+        ok = false
+    }
+    if (ok) {
+        window = SDL_CreateWindow("GX Breakout", 800, 600, 0)
+        if (window == null) { print("CreateWindow failed: {SDL_GetError()}\n"); ok = false }
+    }
+    if (ok) {
+        renderer = SDL_CreateRenderer(window, null)
+        if (renderer == null) { print("CreateRenderer failed: {SDL_GetError()}\n"); ok = false }
+    }
+    if (ok) {
+        // vsync removes the 15-ms granularity jitter SDL_Delay would
+        // otherwise introduce on Windows. Caps to monitor refresh.
+        SDL_SetRenderVSync(renderer, 1)
+    }
+
+    // ---- Game state ----
+    var paddle_y: f32 = (SCREEN_H - PADDLE_H) * 0.5
+    var ball_x:   f32 = SCREEN_W * 0.5
+    var ball_y:   f32 = SCREEN_H * 0.5
+    var ball_vx:  f32 = 0.0 - 4.0   // start heading toward bricks
+    var ball_vy:  f32 = 3.0
+    var miss:     i32 = 0
+    var cleared:  i32 = 0
+
+    // Brick aliveness - flat array indexed by row*COLS + col.
+    var bricks: bool[40]
+    var bi: i32 = 0
+    while (bi < BRICK_COUNT) { bricks[bi] = true; bi = bi + 1 }
+    var bricks_left: i32 = BRICK_COUNT
+
+    var quit: bool = !ok
+    var ev: SDL_Event
+    while (!quit) {
+        while (SDL_PollEvent(&ev)) {
+            if (ev.type == SDL_EVENT_QUIT) { quit = true }
+            if (ev.type == SDL_EVENT_KEY_DOWN) {
+                if (ev.key.scancode == SDL_SCANCODE_ESCAPE) { quit = true }
+            }
+        }
+
+        var keys: *c_bool = SDL_GetKeyboardState(null)
+        if (keys[SDL_SCANCODE_UP])   { paddle_y = paddle_y - PADDLE_SPEED }
+        if (keys[SDL_SCANCODE_DOWN]) { paddle_y = paddle_y + PADDLE_SPEED }
+        paddle_y = clamp_paddle(paddle_y)
+
+        // ---- Ball physics ----
+        ball_x = ball_x + ball_vx
+        ball_y = ball_y + ball_vy
+
+        // Top/bottom wall bounce
+        if (ball_y < 0.0)                 { ball_y = 0.0;                  ball_vy = 0.0 - ball_vy }
+        if (ball_y + BALL_SIZE > SCREEN_H) { ball_y = SCREEN_H - BALL_SIZE; ball_vy = 0.0 - ball_vy }
+
+        // Left wall bounce (in case the ball passes all the bricks)
+        if (ball_x < 0.0) { ball_x = 0.0; ball_vx = 0.0 - ball_vx }
+
+        // Brick collision - scan the alive bricks; first AABB overlap wins.
+        // To pick the right axis to reverse, we look at where the ball was
+        // BEFORE this frame's step. Whichever axis it was already overlapping
+        // on is the axis along which it entered → reverse the OTHER axis's
+        // velocity. This correctly handles top/bottom hits (reverse vy) vs
+        // side hits (reverse vx).
+        var prev_x: f32 = ball_x - ball_vx
+        var r: i32 = 0
+        var hit: bool = false
+        while (r < BRICK_ROWS && !hit) {
+            var c: i32 = 0
+            while (c < BRICK_COLS && !hit) {
+                var idx: i32 = r * BRICK_COLS + c
+                if (bricks[idx]) {
+                    var bx: f32 = BRICK_X0 + c * (BRICK_W + BRICK_GAP)
+                    var by: f32 = BRICK_Y0 + r * (BRICK_H + BRICK_GAP)
+                    if (ball_x + BALL_SIZE > bx) {
+                        if (ball_x < bx + BRICK_W) {
+                            if (ball_y + BALL_SIZE > by) {
+                                if (ball_y < by + BRICK_H) {
+                                    bricks[idx] = false
+                                    bricks_left = bricks_left - 1
+                                    // Was the ball overlapping this brick's
+                                    // x-range last frame? If so, it entered
+                                    // vertically - reverse vy. Otherwise it
+                                    // entered horizontally - reverse vx.
+                                    var was_in_x: bool = (prev_x + BALL_SIZE > bx) && (prev_x < bx + BRICK_W)
+                                    if (was_in_x) { ball_vy = 0.0 - ball_vy }
+                                    else          { ball_vx = 0.0 - ball_vx }
+                                    hit = true
+                                }
+                            }
+                        }
+                    }
+                }
+                c = c + 1
+            }
+            r = r + 1
+        }
+
+        // Right paddle collision
+        if (ball_x + BALL_SIZE > SCREEN_W - PADDLE_W) {
+            if (ball_y + BALL_SIZE >= paddle_y) {
+                if (ball_y <= paddle_y + PADDLE_H) {
+                    ball_x = SCREEN_W - PADDLE_W - BALL_SIZE
+                    ball_vx = 0.0 - ball_vx
+                    var hit_pos: f32 = (ball_y + BALL_SIZE * 0.5) - (paddle_y + PADDLE_H * 0.5)
+                    ball_vy = ball_vy + hit_pos * 0.05
+                }
+            }
+        }
+
+        // Ball off the right edge → miss; respawn ball center, heading left.
+        if (ball_x > SCREEN_W) {
+            miss = miss + 1
+            print("miss  total:{miss}  cleared waves:{cleared}\n")
+            ball_x = SCREEN_W * 0.5; ball_y = SCREEN_H * 0.5
+            ball_vx = 0.0 - 4.0;     ball_vy = 3.0
+        }
+
+        // All bricks down - reset wave.
+        if (bricks_left <= 0) {
+            cleared = cleared + 1
+            print("WAVE CLEARED  total cleared:{cleared}  misses:{miss}\n")
+            var i: i32 = 0
+            while (i < BRICK_COUNT) { bricks[i] = true; i = i + 1 }
+            bricks_left = BRICK_COUNT
+            ball_x = SCREEN_W * 0.5; ball_y = SCREEN_H * 0.5
+            ball_vx = 0.0 - 4.0;     ball_vy = 3.0
+        }
+
+        // ---- Render ----
+        SDL_SetRenderDrawColor(renderer, 12, 14, 22, 255)
+        SDL_RenderClear(renderer)
+
+        // Bricks - alternating row tints, simple but readable
+        var rr: i32 = 0
+        while (rr < BRICK_ROWS) {
+            var cc: i32 = 0
+            while (cc < BRICK_COLS) {
+                var idx2: i32 = rr * BRICK_COLS + cc
+                if (bricks[idx2]) {
+                    var rect: SDL_FRect
+                    rect.x = BRICK_X0 + cc * (BRICK_W + BRICK_GAP)
+                    rect.y = BRICK_Y0 + rr * (BRICK_H + BRICK_GAP)
+                    rect.w = BRICK_W; rect.h = BRICK_H
+                    if (rr % 2 == 0) { SDL_SetRenderDrawColor(renderer, 220, 80, 80, 255) }
+                    else             { SDL_SetRenderDrawColor(renderer, 220, 160, 60, 255) }
+                    SDL_RenderFillRect(renderer, &rect)
+                }
+                cc = cc + 1
+            }
+            rr = rr + 1
+        }
+
+        // Paddle + ball in white
+        SDL_SetRenderDrawColor(renderer, 220, 220, 230, 255)
+        var rp: SDL_FRect; rp.x = SCREEN_W - PADDLE_W; rp.y = paddle_y; rp.w = PADDLE_W; rp.h = PADDLE_H
+        var ba: SDL_FRect; ba.x = ball_x;              ba.y = ball_y;   ba.w = BALL_SIZE; ba.h = BALL_SIZE
+        SDL_RenderFillRect(renderer, &rp)
+        SDL_RenderFillRect(renderer, &ba)
+
+        SDL_RenderPresent(renderer)
+        // No SDL_Delay - vsync (set above) paces the loop to monitor refresh.
+    }
+
+    if (renderer != null) { SDL_DestroyRenderer(renderer) }
+    if (window != null)   { SDL_DestroyWindow(window) }
+    SDL_Quit()
+}

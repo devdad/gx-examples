@@ -1,0 +1,66 @@
+// 09_vec_mat_math.gx
+//
+// vec2, vec3, vec4 and mat4 are built into the language, not a library,
+// because graphics code is what GX is for. Arithmetic works componentwise
+// and swizzles like a.zyx read the way they do in shaders. A swizzle is
+// just a shuffle, it does not allocate anything.
+
+fn main() {
+    // --- Vectors ---
+    var a = vec3{1.0, 2.0, 3.0};
+    var b = vec3{4.0, 5.0, 6.0};
+
+    // Vector addition
+    var c = a + b;
+    print("a + b = {c}\n");
+
+    // Scalar multiply
+    var d = a * 2.0;
+    print("a * 2 = {d}\n");
+
+    // Negate
+    var e = -a;
+
+    var len = 32;
+    for (i=0:len) {
+        print("i = {i}\n");
+    }
+
+    print("-a = {e}\n");
+
+    // Field access
+    print("a.x={a.x} a.y={a.y} a.z={a.z}\n");
+
+    // --- vec2 and vec4 ---
+    var v2 = vec2{10.0, 20.0};
+    print("vec2: {v2}\n");
+
+    var v4 = vec4{1.0, 0.0, 0.0, 1.0};
+    print("vec4: {v4}\n");
+
+    // --- Swizzle ---
+    var sw1 = a.xy;
+    print("a.xy = {sw1}\n");
+
+    var sw2 = a.zyx;
+    print("a.zyx = {sw2}\n");
+
+    var sw3 = v4.wz;
+    print("v4.wz = {sw3}\n");
+
+    var sw4 = v2.yx;
+    print("v2.yx = {sw4}\n");
+
+    // Repeat components
+    var sw5 = a.xx;
+    print("a.xx = {sw5}\n");
+
+    // --- Matrix ---
+    var M = mat4{
+        vec4{1,0,0,0},
+        vec4{0,1,0,0},
+        vec4{0,0,1,0},
+        vec4{0,0,0,1},
+    };
+    print("Identity: {M}\n");
+}

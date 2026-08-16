@@ -1,0 +1,107 @@
+// 39_io.gx
+//
+// The io module: console printing, path helpers, filesystem checks, and
+// whole-file read, write and append. The path functions are pure string
+// work, they never touch the disk. The low-level handle API goes through
+// the extern gx_fopen, since GX functions themselves cannot return pointers.
+
+import io.io
+import io.file
+import io.fs
+import io.path
+
+fn main() {
+    // --- Console I/O ---
+    println("=== Console I/O ===")
+    println("Hello from println!")
+    eprintln("This goes to stderr")
+
+    // --- Path utilities ---
+    println("\n=== Path Utilities ===")
+
+    var p = "src/frontend/parser/parser.cpp"
+    print("  path:      ") println(p)
+    print("  dirname:   ") println(dirname(p))
+    print("  basename:  ") println(basename(p))
+    print("  extension: ") println(extension(p))
+    print("  stem:      ") println(stem(p))
+
+    var win = "C:\\Users\\test\\file.txt"
+    print("  win path:  ") println(win)
+    print("  dirname:   ") println(dirname(win))
+    print("  basename:  ") println(basename(win))
+
+    print("  is_absolute('/usr/bin'):  ")
+    if (is_absolute("/usr/bin")) { println("true") } else { println("false") }
+
+    print("  is_absolute('C:\\foo'):    ")
+    if (is_absolute("C:\\foo")) { println("true") } else { println("false") }
+
+    print("  is_absolute('relative'):  ")
+    if (is_absolute("relative")) { println("true") } else { println("false") }
+
+    print("  join('foo','bar'):        ") println(join("foo", "bar"))
+    print("  join('foo/','bar'):       ") println(join("foo/", "bar"))
+
+    // --- Filesystem ---
+    println("\n=== Filesystem ===")
+
+    print("  exists('examples/39_io.gx'):  ")
+    if (exists("examples/39_io.gx")) { println("true") } else { println("false") }
+
+    print("  is_file('examples/39_io.gx'): ")
+    if (is_file("examples/39_io.gx")) { println("true") } else { println("false") }
+
+    print("  is_dir('examples'):           ")
+    if (is_dir("examples")) { println("true") } else { println("false") }
+
+    print("  is_file('nonexistent'):       ")
+    if (is_file("nonexistent")) { println("true") } else { println("false") }
+
+    var sz = file_size("examples/39_io.gx")
+    print("  file_size: ") print("{sz}") println(" bytes")
+
+    // --- File I/O ---
+    println("\n=== File I/O ===")
+
+    // Write a test file
+    var ok = write_all("_test_io.txt", "Hello from GX io module!\nLine 2\n")
+    print("  write_all: ") if (ok) { println("ok") } else { println("failed") }
+
+    // Read it back
+    var content = read_all("_test_io.txt")
+    print("  read_all:  ") print(content)
+
+    // Append to it
+    ok = append_all("_test_io.txt", "Line 3 appended\n")
+    print("  append:    ") if (ok) { println("ok") } else { println("failed") }
+
+    // Read again
+    content = read_all("_test_io.txt")
+    print("  after append:\n") print(content)
+
+    // Low-level file API - call the extern gx_fopen directly because
+    // GX forbids non-extern fns from returning pointer types.
+    var f = gx_fopen("_test_io.txt".cstr, "r".cstr)
+    if (f != 0) {
+        var pos = file_tell(f)
+        print("  tell at start: ") println("{pos}")
+        file_close(f)
+    }
+
+    // Clean up test file
+    ok = remove_file("_test_io.txt")
+    print("  remove:    ") if (ok) { println("ok") } else { println("failed") }
+
+    print("  exists after remove: ")
+    if (exists("_test_io.txt")) { println("true") } else { println("false") }
+
+    // make_dir / remove_dir
+    ok = make_dir("_test_dir")
+    print("\n  make_dir:  ") if (ok) { println("ok") } else { println("failed") }
+    print("  is_dir:    ") if (is_dir("_test_dir")) { println("true") } else { println("false") }
+    ok = remove_dir("_test_dir")
+    print("  remove_dir:") if (ok) { println("ok") } else { println("failed") }
+
+    println("\n=== Done ===")
+}

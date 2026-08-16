@@ -1,0 +1,90 @@
+// 06_dynamic_arrays.gx
+//
+// array<T> is the growable one. It allocates, so you free it when you are
+// done, and defer makes that a one-liner. push, at, sort, remove_swap,
+// clear, and both loop styles all work on it. remove_swap gives up element
+// order to stay O(1), usually the right trade.
+
+fn main() {
+    // --- Static array for-each ---
+    print("Static array\n");
+    var week_days:str[7] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+    for (item:str in week_days) {
+        print("Day: {item}\n");
+    }
+
+    // --- Dynamic array with initializer syntax ---
+    print("\nDynamic array (initializer syntax)\n");
+    var darr:array<str> = {"Afan", "Sanela", "Ajdin"};
+    defer darr.free();
+
+    // For-each works on dynamic arrays
+    for (var item in darr) {
+        print("  item: {item}\n");
+    }
+
+    // Multiple iterations work fine
+    print("\nSecond iteration with index:\n");
+    var cnt = 0;
+    for (var item in darr) {
+        print("  [{cnt}] {item}\n");
+        cnt = cnt + 1;
+    }
+
+    // Index-based loop also works
+    print("\nIndex-based loop:\n");
+    for (j = 0:darr.len()-1) {
+        print("  {darr.at(j)}\n");
+    }
+
+    // --- Dynamic array without initializer (auto-init) ---
+    var a:array<i32>;
+    defer a.free();
+
+    // Push elements
+    a.push(30);
+    a.push(10);
+    a.push(50);
+    a.push(20);
+    a.push(40);
+    print("\nAfter push: len={a.len()} cap={a.cap()}\n");
+
+    // Access elements
+    print("a[0]={a.at(0)} a[1]={a.at(1)} a[2]={a.at(2)}\n");
+
+    // For-each over i32 dynamic array
+    print("\nFor-each over i32 array:\n");
+    for (var n in a) {
+        print("  {n}\n");
+    }
+
+    // Sort
+    a.sort();
+    print("\nAfter sort:\n");
+    for (var n in a) {
+        print("  {n}\n");
+    }
+
+    // Remove (swap with last - O(1))
+    a.remove_swap(0);
+    print("\nAfter remove_swap(0): len={a.len()}\n");
+    for (var n in a) {
+        print("  {n}\n");
+    }
+
+    // Clear
+    a.clear();
+    print("\nAfter clear: len={a.len()}\n");
+
+    // --- Collect: create dynamic array from loop ---
+    var data:i32[6] = {5, 12, 3, 18, 7, 20};
+    var big = for (x in data) where (x >= 10) collect x;
+    print("\nCollected (>= 10): ");
+    for (var n in big) {
+        print("{n} ");
+    }
+    print("(len={big.len()})\n");
+    big.free();
+
+    print("\nDone.\n");
+}

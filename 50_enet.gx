@@ -1,0 +1,143 @@
+// 50_enet.gx
+//
+// ENet server and client in one process. The client dials 127.0.0.1:7777,
+// sends one reliable packet, the server receives it, both disconnect and
+// tear down. The enet module binds the C library directly: ENetAddress
+// and ENetEvent are the real C structs, hosts and peers are plain
+// pointers, nothing sits between your code and the library.
+
+import enet
+
+fn main() {
+    var ok: bool = true
+
+    // ---- Init ----
+    if (enet_initialize() != 0) {
+        print("ENet init FAILED\n")
+        ok = false
+    }
+    if (ok) { print("ENet init OK\n") }
+
+    // Friction #8 RESOLVED: `null` literal is now in the language.
+    var server: *void = null
+    var client: *void = null
+    var peer:   *void = null
+
+    if (ok) {
+        var server_addr: ENetAddress
+        server_addr.host = ENET_HOST_ANY
+        server_addr.port = 7777
+        server = enet_host_create(&server_addr, 4, 2, 0, 0)
+        if (server == null) {
+            print("server create FAILED\n")
+            ok = false
+        }
+    }
+    if (ok) { print("server listening on port 7777\n") }
+
+    if (ok) {
+        client = enet_host_create(0, 1, 2, 0, 0)
+        if (client == null) {
+            print("client create FAILED\n")
+            ok = false
+        }
+    }
+
+    if (ok) {
+        var connect_addr: ENetAddress
+        enet_address_set_host(&connect_addr, "127.0.0.1")
+        connect_addr.port = 7777
+        peer = enet_host_connect(client, &connect_addr, 2, 0)
+        if (peer == null) {
+            print("client connect FAILED\n")
+            ok = false
+        }
+    }
+    if (ok) { print("client dialing 127.0.0.1:7777...\n") }
+
+    // ---- Pump until handshake completes ----
+    var ev: ENetEvent
+    var connected: bool = false
+    var iters: i32 = 0
+    while (ok && !connected) {
+        if (iters > 500) {
+            print("handshake TIMEOUT\n")
+            ok = false
+        } else {
+            var sr: i32 = enet_host_service(server, &ev, 5)
+            if (sr > 0) {
+                if (ev.type == ENET_EVENT_TYPE_CONNECT) {
+                    print("[server] peer connected\n")
+                }
+            }
+            var cr: i32 = enet_host_service(client, &ev, 5)
+            if (cr > 0) {
+                if (ev.type == ENET_EVENT_TYPE_CONNECT) {
+                    print("[client] connected to server\n")
+                    connected = true
+                }
+            }
+            iters = iters + 1
+        }
+    }
+
+    // ---- Send one reliable packet ----
+    if (ok) {
+        var msg: cstr = "hello from gx!"
+        // cstr passes directly to an extern fn taking *void - the transpiler
+        // no longer wraps it in ec_str_make for non-str pointer params.
+        var pkt: *void = enet_packet_create(msg, 14, ENET_PACKET_FLAG_RELIABLE)
+        enet_peer_send(peer, 0, pkt)
+        enet_host_flush(client)
+        print("[client] sent packet\n")
+    }
+
+    // ---- Wait for receive ----
+    var got:bool = false
+    iters = 0
+    while (ok && !got) {
+        if (iters > 200) {
+            print("receive TIMEOUT\n")
+            ok = false
+        } else {
+            var sr: i32 = enet_host_service(server, &ev, 5)
+            if (sr > 0) {
+                if (ev.type == ENET_EVENT_TYPE_RECEIVE) {
+                    print("[server] got packet, channel={ev.channelID}\n")
+                    enet_packet_destroy(ev.packet)
+                    got = true
+                }
+            }
+            enet_host_service(client, &ev, 0)
+            iters = iters + 1
+        }
+    }
+
+    // ---- Disconnect cleanly ----
+    if (ok && peer != null) {
+        enet_peer_disconnect(peer, 0)
+        iters = 0
+        var done: bool = false
+        while (!done && iters < 50) {
+            var sr: i32 = enet_host_service(server, &ev, 5)
+            if (sr > 0) {
+                if (ev.type == ENET_EVENT_TYPE_DISCONNECT) {
+                    print("[server] peer disconnected\n")
+                    done = true
+                }
+            }
+            enet_host_service(client, &ev, 5)
+            iters = iters + 1
+        }
+    }
+
+    // ---- Tear down ----
+    if (client != null) { enet_host_destroy(client) }
+    if (server != null) { enet_host_destroy(server) }
+    enet_deinitialize()
+    if (ok) {
+        print("smoke test PASSED\n")
+    } else {
+        print("smoke test FAILED\n")
+    }
+}

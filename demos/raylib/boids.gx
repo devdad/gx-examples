@@ -1,0 +1,458 @@
+// boids.gx
+//
+// Craig Reynolds' boids: separation, alignment, cohesion. I added a
+// predator that patrols in from an edge every few seconds and sends
+// the flock sprinting. Left click attracts, right click scatters,
+// the wheel changes the flock size.
+@backend("llvm")
+import raylib
+import math.scalar
+
+const MAX_BOIDS = 300
+const SCREEN_W = 800
+const SCREEN_H = 600
+
+struct Boid {
+    position: Vector2
+    velocity: Vector2
+    color: Color
+    sprint_timer: f32   // >0 = sprinting at 2x speed (escaping predator)
+}
+
+struct Predator {
+    position: Vector2
+    velocity: Vector2
+    attack_timer: f32   // >0 = chasing (increased speed)
+    scan_timer: f32     // countdown between prey-scans
+    active: bool
+}
+
+var g_boids: Boid[300]
+var g_boid_count: i32 = 0
+var g_predator: Predator
+var g_spawn_timer: f32 = 0.0   // counts up until next predator spawn
+
+// Flocking parameters
+const VIEW_RADIUS: f32 = 60.0
+const SEPARATION_RADIUS: f32 = 25.0
+const MAX_SPEED: f32 = 90.0
+const MAX_FORCE: f32 = 3.5
+
+const SEP_WEIGHT: f32 = 1.8
+const ALI_WEIGHT: f32 = 1.0
+const COH_WEIGHT: f32 = 0.8
+
+// Predator parameters
+const PRED_SIZE: f32 = 21.0              // 3x the boid triangle size (7)
+const PRED_CRUISE_SPEED: f32 = 45.0      // slow patrol speed
+const PRED_ATTACK_SPEED: f32 = 150.0     // sprint when hunting
+const PRED_DETECT_RADIUS: f32 = 140.0    // prey detection range
+const PRED_FLEE_RADIUS: f32 = 120.0      // how close predator is before prey flee
+const PRED_SPAWN_INTERVAL: f32 = 12.0    // seconds between spawns
+
+// --- Simple LCG PRNG ---
+var g_rng: i32 = 12345
+
+fn rand_next:i32() {
+    g_rng = g_rng * 1103515245 + 12345
+    var v: i32 = (g_rng / 65536) & 32767
+    return v
+}
+
+fn rand_range_f:f32(lo: f32, hi: f32) {
+    var v: f32 = (rand_next() % 10000) / 10000.0
+    return lo + v * (hi - lo)
+}
+
+fn rand_range_i:i32(lo: i32, hi: i32) {
+    var range: i32 = hi - lo + 1
+    return lo + (rand_next() % range)
+}
+
+fn spawn_boid() {
+    if (g_boid_count >= MAX_BOIDS) { return }
+    var i: i32 = g_boid_count
+    g_boids[i].position.x = rand_range_f(0.0, SCREEN_W * 1.0)
+    g_boids[i].position.y = rand_range_f(0.0, SCREEN_H * 1.0)
+    g_boids[i].velocity.x = rand_range_f(0.0 - MAX_SPEED, MAX_SPEED)
+    g_boids[i].velocity.y = rand_range_f(0.0 - MAX_SPEED, MAX_SPEED)
+
+    // Color gradient based on position - cool blues/purples
+    var hue: f32 = rand_range_f(140.0, 255.0)
+    g_boids[i].color.r = (u8)(40 + rand_range_i(0, 60))
+    g_boids[i].color.g = (u8)(120 + rand_range_i(0, 80))
+    g_boids[i].color.b = (u8)hue
+    g_boids[i].color.a = 255
+
+    g_boid_count = g_boid_count + 1
+}
+
+// Clamp a velocity magnitude in-place (via ball index since GX doesn't deref pointers easily)
+fn limit_boid_speed(i: i32, max: f32) {
+    var vx: f32 = g_boids[i].velocity.x
+    var vy: f32 = g_boids[i].velocity.y
+    var mag_sq: f32 = vx * vx + vy * vy
+    var max_sq: f32 = max * max
+    if (mag_sq > max_sq) {
+        var mag: f32 = sqrtf(mag_sq)
+        g_boids[i].velocity.x = (vx / mag) * max
+        g_boids[i].velocity.y = (vy / mag) * max
+    }
+}
+
+// Spawn a predator from a random edge, heading toward screen center
+fn spawn_predator() {
+    var edge: i32 = rand_next() % 4
+    var cx: f32 = SCREEN_W * 0.5
+    var cy: f32 = SCREEN_H * 0.5
+
+    if (edge == 0) {
+        // Top edge
+        g_predator.position.x = rand_range_f(0.0, SCREEN_W * 1.0)
+        g_predator.position.y = 0.0 - PRED_SIZE
+    }
+    if (edge == 1) {
+        // Right edge
+        g_predator.position.x = SCREEN_W + PRED_SIZE
+        g_predator.position.y = rand_range_f(0.0, SCREEN_H * 1.0)
+    }
+    if (edge == 2) {
+        // Bottom edge
+        g_predator.position.x = rand_range_f(0.0, SCREEN_W * 1.0)
+        g_predator.position.y = SCREEN_H + PRED_SIZE
+    }
+    if (edge == 3) {
+        // Left edge
+        g_predator.position.x = 0.0 - PRED_SIZE
+        g_predator.position.y = rand_range_f(0.0, SCREEN_H * 1.0)
+    }
+
+    // Initial heading: toward screen center
+    var dx: f32 = cx - g_predator.position.x
+    var dy: f32 = cy - g_predator.position.y
+    var mag: f32 = sqrtf(dx * dx + dy * dy)
+    if (mag < 0.001) { mag = 0.001 }
+    g_predator.velocity.x = (dx / mag) * PRED_CRUISE_SPEED
+    g_predator.velocity.y = (dy / mag) * PRED_CRUISE_SPEED
+
+    g_predator.attack_timer = 0.0
+    g_predator.scan_timer = 2.0
+    g_predator.active = true
+}
+
+fn main() {
+    InitWindow(SCREEN_W, SCREEN_H, "GX + Raylib - Classic Boids")
+    SetTargetFPS(60)
+
+    // Spawn initial flock
+    for (i = 0 : 99) {
+        spawn_boid()
+    }
+
+    // Predator starts inactive; will spawn after interval
+    g_predator.active = false
+
+    var bg: Color
+    bg.r = 12
+    bg.g = 18
+    bg.b = 32
+    bg.a = 255
+
+    while (!WindowShouldClose()) {
+        var delta: f32 = GetFrameTime()
+        var mouse: Vector2 = GetMousePosition()
+        var mouse_attract: bool = IsMouseButtonDown(MOUSE_BUTTON_LEFT)
+        var mouse_repel: bool = IsMouseButtonDown(MOUSE_BUTTON_RIGHT)
+
+        // Adjust count with mouse wheel
+        var wheel: f32 = GetMouseWheelMove()
+        if (wheel > 0.0) {
+            for (k = 0 : 9) { spawn_boid() }
+        }
+        if (wheel < 0.0) {
+            if (g_boid_count >= 10) { g_boid_count = g_boid_count - 10 }
+        }
+
+        // ---- Predator spawn timer ----
+        if (!g_predator.active) {
+            g_spawn_timer = g_spawn_timer + delta
+            if (g_spawn_timer >= PRED_SPAWN_INTERVAL) {
+                g_spawn_timer = 0.0
+                spawn_predator()
+            }
+        }
+
+        // ---- Predator update ----
+        if (g_predator.active) {
+            // Periodic target scan - enter attack mode if prey is close enough
+            g_predator.scan_timer = g_predator.scan_timer - delta
+            if (g_predator.scan_timer <= 0.0) {
+                g_predator.scan_timer = 3.0  // scan every 3 seconds
+
+                // Find the nearest boid within detection radius
+                var best_idx: i32 = 0 - 1
+                var best_dist_sq: f32 = PRED_DETECT_RADIUS * PRED_DETECT_RADIUS
+                for (i = 0 : g_boid_count - 1) {
+                    var bdx: f32 = g_boids[i].position.x - g_predator.position.x
+                    var bdy: f32 = g_boids[i].position.y - g_predator.position.y
+                    var bsq: f32 = bdx * bdx + bdy * bdy
+                    if (bsq < best_dist_sq) {
+                        best_dist_sq = bsq
+                        best_idx = i
+                    }
+                }
+                if (best_idx >= 0) {
+                    // Attack mode for 2.5 seconds - steer toward target
+                    g_predator.attack_timer = 2.5
+                    var tdx: f32 = g_boids[best_idx].position.x - g_predator.position.x
+                    var tdy: f32 = g_boids[best_idx].position.y - g_predator.position.y
+                    var tmag: f32 = sqrtf(tdx * tdx + tdy * tdy)
+                    if (tmag < 0.001) { tmag = 0.001 }
+                    g_predator.velocity.x = (tdx / tmag) * PRED_ATTACK_SPEED
+                    g_predator.velocity.y = (tdy / tmag) * PRED_ATTACK_SPEED
+                }
+            }
+
+            // Decay attack timer and slow back to cruise when it expires
+            if (g_predator.attack_timer > 0.0) {
+                g_predator.attack_timer = g_predator.attack_timer - delta
+                if (g_predator.attack_timer <= 0.0) {
+                    // Return to cruise speed
+                    var cvx: f32 = g_predator.velocity.x
+                    var cvy: f32 = g_predator.velocity.y
+                    var cmag: f32 = sqrtf(cvx * cvx + cvy * cvy)
+                    if (cmag > 0.001) {
+                        g_predator.velocity.x = (cvx / cmag) * PRED_CRUISE_SPEED
+                        g_predator.velocity.y = (cvy / cmag) * PRED_CRUISE_SPEED
+                    }
+                }
+            }
+
+            // Move predator
+            g_predator.position.x = g_predator.position.x + g_predator.velocity.x * delta
+            g_predator.position.y = g_predator.position.y + g_predator.velocity.y * delta
+
+            // Kill predator when it exits the screen
+            var off: f32 = PRED_SIZE * 2.0
+            if (g_predator.position.x < (0.0 - off)) { g_predator.active = false }
+            if (g_predator.position.x > (SCREEN_W + off)) { g_predator.active = false }
+            if (g_predator.position.y < (0.0 - off)) { g_predator.active = false }
+            if (g_predator.position.y > (SCREEN_H + off)) { g_predator.active = false }
+        }
+
+        // ---- Boid flocking update ----
+        for (i = 0 : g_boid_count - 1) {
+            // Accumulators for the three rules
+            var sep_x: f32 = 0.0
+            var sep_y: f32 = 0.0
+            var ali_x: f32 = 0.0
+            var ali_y: f32 = 0.0
+            var coh_x: f32 = 0.0
+            var coh_y: f32 = 0.0
+            var neighbors: i32 = 0
+            var sep_count: i32 = 0
+
+            // Scan all other boids
+            for (j = 0 : g_boid_count - 1) {
+                if (i != j) {
+                    var dx: f32 = g_boids[j].position.x - g_boids[i].position.x
+                    var dy: f32 = g_boids[j].position.y - g_boids[i].position.y
+                    var dist_sq: f32 = dx * dx + dy * dy
+
+                    if (dist_sq < VIEW_RADIUS * VIEW_RADIUS) {
+                        if (dist_sq > 0.01) {
+                            // Alignment & cohesion: all boids in view radius
+                            ali_x = ali_x + g_boids[j].velocity.x
+                            ali_y = ali_y + g_boids[j].velocity.y
+                            coh_x = coh_x + g_boids[j].position.x
+                            coh_y = coh_y + g_boids[j].position.y
+                            neighbors = neighbors + 1
+
+                            // Separation: only very close boids
+                            if (dist_sq < SEPARATION_RADIUS * SEPARATION_RADIUS) {
+                                // Push away, weighted by inverse distance
+                                var dist: f32 = sqrtf(dist_sq)
+                                sep_x = sep_x - (dx / dist) / dist
+                                sep_y = sep_y - (dy / dist) / dist
+                                sep_count = sep_count + 1
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Compute steering forces
+            var steer_x: f32 = 0.0
+            var steer_y: f32 = 0.0
+
+            if (sep_count > 0) {
+                steer_x = steer_x + sep_x * SEP_WEIGHT * 200.0
+                steer_y = steer_y + sep_y * SEP_WEIGHT * 200.0
+            }
+
+            if (neighbors > 0) {
+                var inv_n: f32 = 1.0 / (neighbors * 1.0)
+                // Alignment: steer toward average velocity of neighbors
+                var avg_vx: f32 = ali_x * inv_n
+                var avg_vy: f32 = ali_y * inv_n
+                steer_x = steer_x + (avg_vx - g_boids[i].velocity.x) * ALI_WEIGHT * 0.05
+                steer_y = steer_y + (avg_vy - g_boids[i].velocity.y) * ALI_WEIGHT * 0.05
+
+                // Cohesion: steer toward average position of neighbors
+                var center_x: f32 = coh_x * inv_n
+                var center_y: f32 = coh_y * inv_n
+                steer_x = steer_x + (center_x - g_boids[i].position.x) * COH_WEIGHT * 0.02
+                steer_y = steer_y + (center_y - g_boids[i].position.y) * COH_WEIGHT * 0.02
+            }
+
+            // Mouse interaction
+            if (mouse_attract) {
+                var mdx: f32 = mouse.x - g_boids[i].position.x
+                var mdy: f32 = mouse.y - g_boids[i].position.y
+                steer_x = steer_x + mdx * 0.8
+                steer_y = steer_y + mdy * 0.8
+            }
+            if (mouse_repel) {
+                var mdx: f32 = g_boids[i].position.x - mouse.x
+                var mdy: f32 = g_boids[i].position.y - mouse.y
+                var mdist_sq: f32 = mdx * mdx + mdy * mdy
+                if (mdist_sq < 40000.0) {
+                    steer_x = steer_x + mdx * 3.0
+                    steer_y = steer_y + mdy * 3.0
+                }
+            }
+
+            // Predator flee: if predator is active and close, steer away hard + sprint
+            if (g_predator.active) {
+                var pdx: f32 = g_boids[i].position.x - g_predator.position.x
+                var pdy: f32 = g_boids[i].position.y - g_predator.position.y
+                var pdist_sq: f32 = pdx * pdx + pdy * pdy
+                var flee_sq: f32 = PRED_FLEE_RADIUS * PRED_FLEE_RADIUS
+                if (pdist_sq < flee_sq) {
+                    // Stronger flee the closer the predator is
+                    var pdist: f32 = sqrtf(pdist_sq)
+                    if (pdist < 0.001) { pdist = 0.001 }
+                    var flee_force: f32 = (PRED_FLEE_RADIUS - pdist) * 4.0
+                    steer_x = steer_x + (pdx / pdist) * flee_force
+                    steer_y = steer_y + (pdy / pdist) * flee_force
+                    // Activate sprint for 1.2 seconds
+                    g_boids[i].sprint_timer = 1.2
+                }
+            }
+
+            // Decay sprint timer
+            if (g_boids[i].sprint_timer > 0.0) {
+                g_boids[i].sprint_timer = g_boids[i].sprint_timer - delta
+            }
+
+            // Apply steering force
+            g_boids[i].velocity.x = g_boids[i].velocity.x + steer_x * delta
+            g_boids[i].velocity.y = g_boids[i].velocity.y + steer_y * delta
+
+            // Limit speed (2x while sprinting to escape predator)
+            var speed_cap: f32 = MAX_SPEED
+            if (g_boids[i].sprint_timer > 0.0) {
+                speed_cap = MAX_SPEED * 2.0
+            }
+            limit_boid_speed(i, speed_cap)
+
+            // Update position
+            g_boids[i].position.x = g_boids[i].position.x + g_boids[i].velocity.x * delta
+            g_boids[i].position.y = g_boids[i].position.y + g_boids[i].velocity.y * delta
+
+            // Wrap around screen edges
+            if (g_boids[i].position.x < 0.0) { g_boids[i].position.x = g_boids[i].position.x + SCREEN_W }
+            if (g_boids[i].position.x > SCREEN_W) { g_boids[i].position.x = g_boids[i].position.x - SCREEN_W }
+            if (g_boids[i].position.y < 0.0) { g_boids[i].position.y = g_boids[i].position.y + SCREEN_H }
+            if (g_boids[i].position.y > SCREEN_H) { g_boids[i].position.y = g_boids[i].position.y - SCREEN_H }
+        }
+
+        // ---- Draw ----
+        BeginDrawing()
+        ClearBackground(bg)
+
+        // Draw each boid as a triangle pointing in its velocity direction
+        for (i = 0 : g_boid_count - 1) {
+            var vx: f32 = g_boids[i].velocity.x
+            var vy: f32 = g_boids[i].velocity.y
+            var vmag: f32 = sqrtf(vx * vx + vy * vy)
+            if (vmag < 0.001) { vmag = 0.001 }
+
+            // Unit direction
+            var dx: f32 = vx / vmag
+            var dy: f32 = vy / vmag
+            // Perpendicular
+            var px: f32 = 0.0 - dy
+            var py: f32 = dx
+
+            var cx: f32 = g_boids[i].position.x
+            var cy: f32 = g_boids[i].position.y
+            var size: f32 = 7.0
+
+            // Triangle: tip forward, two base points behind
+            // Winding MUST be counter-clockwise for raylib (otherwise back-face culled)
+            var p1: Vector2
+            p1.x = cx + dx * size
+            p1.y = cy + dy * size
+            // Back-right (CCW from tip in screen space where y goes down)
+            var p2: Vector2
+            p2.x = cx - dx * size - px * size * 0.6
+            p2.y = cy - dy * size - py * size * 0.6
+            // Back-left
+            var p3: Vector2
+            p3.x = cx - dx * size + px * size * 0.6
+            p3.y = cy - dy * size + py * size * 0.6
+
+            DrawTriangle(p1, p2, p3, g_boids[i].color)
+        }
+
+        // Draw predator (big red triangle)
+        if (g_predator.active) {
+            var pvx: f32 = g_predator.velocity.x
+            var pvy: f32 = g_predator.velocity.y
+            var pvmag: f32 = sqrtf(pvx * pvx + pvy * pvy)
+            if (pvmag < 0.001) { pvmag = 0.001 }
+            var pdx: f32 = pvx / pvmag
+            var pdy: f32 = pvy / pvmag
+            var ppx: f32 = 0.0 - pdy
+            var ppy: f32 = pdx
+            var pcx: f32 = g_predator.position.x
+            var pcy: f32 = g_predator.position.y
+            var psize: f32 = PRED_SIZE
+
+            var pred_color: Color
+            if (g_predator.attack_timer > 0.0) {
+                // Brighter red while attacking
+                pred_color.r = 255
+                pred_color.g = 40
+                pred_color.b = 40
+            } else {
+                pred_color.r = 200
+                pred_color.g = 30
+                pred_color.b = 30
+            }
+            pred_color.a = 255
+
+            var pp1: Vector2
+            pp1.x = pcx + pdx * psize
+            pp1.y = pcy + pdy * psize
+            var pp2: Vector2
+            pp2.x = pcx - pdx * psize - ppx * psize * 0.6
+            pp2.y = pcy - pdy * psize - ppy * psize * 0.6
+            var pp3: Vector2
+            pp3.x = pcx - pdx * psize + ppx * psize * 0.6
+            pp3.y = pcy - pdy * psize + ppy * psize * 0.6
+            DrawTriangle(pp1, pp2, pp3, pred_color)
+        }
+
+        DrawText("Left-click: attract    Right-click: scatter    Wheel: +/- 10 boids", 10, 10, 14, RAYWHITE)
+        var count = g_boid_count
+        var info = "BOIDS: {count}"
+        DrawText(info.cstr, 10, SCREEN_H - 30, 20, RAYWHITE)
+        DrawFPS(SCREEN_W - 90, 10)
+
+        EndDrawing()
+    }
+
+    CloseWindow()
+}

@@ -1,0 +1,23 @@
+// 53_cimgui.gx
+//
+// The smallest Dear ImGui program: print the version, create a context,
+// destroy it. Nothing renders. The point is the build chain. ImGui is
+// C++, cimgui wraps it in C, and GX calls the C layer through the cimgui
+// module, so if this runs, the whole C++ to C to GX pipeline compiles,
+// links against the C++ runtime, and works.
+
+import cimgui
+
+fn main() {
+    var ver: cstr = igGetVersion()
+    print("imgui version = {ver}\n")
+
+    var ctx: *void = igCreateContext(null)
+    if (ctx == null) {
+        print("CreateContext FAILED\n")
+    } else {
+        print("created ImGuiContext OK\n")
+        igDestroyContext(ctx)
+        print("smoke test PASSED\n")
+    }
+}

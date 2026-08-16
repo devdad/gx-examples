@@ -1,0 +1,10 @@
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.o
+*.c
+*.js
+*.wasm
+*.html
+build/

@@ -1,0 +1,40 @@
+// 08_enums.gx
+//
+// Enums are named integers, same as in C. Compare them, branch on them,
+// and if you print one you get the number back.
+
+enum Direction {
+    North
+    South
+    East
+    West
+}
+
+enum Color {
+    Red = 0
+    Green = 1
+    Blue = 2
+}
+
+fn main() {
+    // Declare enum variables
+    var dir:Direction = East;
+
+    // Compare enum values
+    if (dir == North) {
+        print("Heading North\n");
+    } elif (dir == East) {
+        print("Heading East\n");
+    } elif (dir == South) {
+        print("Heading South\n");
+    } else {
+        print("Heading West\n");
+    }
+
+    // Enum to string (shows integer value)
+    print("East = {dir}\n");
+
+    // Another enum
+    var c:Color = Blue;
+    print("Blue = {c}\n");
+}

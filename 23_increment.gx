@@ -1,0 +1,36 @@
+// 23_increment.gx
+//
+// ++ and -- in prefix and postfix form. Postfix hands you the old value,
+// prefix the new one, same rules as C.
+
+fn main() {
+    // Postfix
+    var a:i32 = 5;
+    a++;
+    print("a++ => {a}\n");
+
+    var b:i32 = 10;
+    b--;
+    print("b-- => {b}\n");
+
+    var h1:i32 = b<11?10:20;
+    print("h={h1}\n");
+    // Prefix
+    var c:i32 = 0;
+    ++c;
+    ++c;
+    ++c;
+    c++;
+    --c;
+    c--;
+    print("++c x3 => {c}\n");
+
+    // Prefix vs postfix in expressions
+    var e:i32 = 5;
+    var f:i32 = e++;
+    print("postfix: e={e}, f={f}\n");
+
+    var g:i32 = 5;
+    var h:i32 = ++g;
+    print("prefix:  g={g}, h={h}\n");
+}

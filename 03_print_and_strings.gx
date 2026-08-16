@@ -1,0 +1,37 @@
+// 03_print_and_strings.gx
+//
+// print, concatenation with +, and {expr} interpolation. Strings are UTF-8.
+// A str is a pointer plus a length, so getting the length costs nothing.
+// .str() turns any value into text, vectors included.
+
+fn main() {
+    // Basic print
+    print("Hello GXers!\n");
+    var s:str = "Family";
+    // String concatenation with +
+    var greeting = "Hello" + ", " + "GX {s}!!! \n";
+    print(greeting)
+
+    // String interpolation with {expr}
+    var x:i32 = 42;
+
+
+    var f:f32 = 3.14;
+    print("int={x} float={f}\n");
+
+    // .str() converts any type to string
+    var v = vec3{1.0, 2.0, 3.0};
+    print("vec3={v}\n");
+    print("vec3 via concat: " + v.str() + "\n");
+
+    // UTF-8 strings
+    var utf = "Hello UTF-8: cafe\n";
+    print(utf);
+
+    // Escape sequences
+    print("Tab:\there\n");
+    print("Quote: \"hello\"\n");
+
+    // String + number auto-converts
+    print("result=" + (10 + 20).str() + "\n");
+}

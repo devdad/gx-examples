@@ -1,0 +1,90 @@
+// 28_const.gx
+//
+// const declarations are folded at compile time. Arithmetic, bitwise
+// ops, comparisons, references to other consts, all of it collapses to a
+// literal in the output, so PI * 2.0 costs nothing at runtime. Const
+// arrays work too, sized explicitly or inferred from the initializer.
+
+// Global constants (no type annotation - inferred)
+const PI = 3.14159265358979;
+const TAU = PI * 2.0;
+const SCREEN_WIDTH = 1920;
+const SCREEN_HEIGHT = 1080;
+const ASPECT_RATIO = 16.0 / 9.0;
+
+// Global constants with type annotation
+const MAX_ENTITIES:i32 = 1024;
+const BUFFER_SIZE:i64 = MAX_ENTITIES * 64;
+
+// Const expressions with bitwise ops
+const FLAG_READ = 1;
+const FLAG_WRITE = 2;
+const FLAG_EXEC = 4;
+const FLAG_ALL = FLAG_READ | FLAG_WRITE | FLAG_EXEC;
+
+// Boolean consts
+const DEBUG_MODE = false;
+const IS_WIDE = SCREEN_WIDTH > 1000;
+
+// Const arrays - explicit size or inferred with []
+const PRIMES:i32[5] = { 2, 3, 5, 7, 11 };
+const COLORS:str[]  = { "red", "green", "blue" };  // size inferred to 3
+const FIB:i64[]     = { 1, 1, 2, 3, 5, 8, 13, 21 };
+
+
+fn main() {
+    print("=== Const Declarations ===");
+    // Using global consts
+    print("PI = {PI}");
+    print("TAU = {TAU}");
+    print("Screen: {SCREEN_WIDTH}x{SCREEN_HEIGHT}");
+    print("Aspect ratio: {ASPECT_RATIO}");
+    print("Max entities: {MAX_ENTITIES}");
+    print("Buffer size: {BUFFER_SIZE}");
+
+    print("");
+    print("=== Const Folding ===");
+
+    // Const folding: these should be computed at compile time
+    const AREA = SCREEN_WIDTH * SCREEN_HEIGHT;
+    print("Screen area: {AREA}");
+
+    const HALF_PI = PI / 2.0;
+    print("PI/2 = {HALF_PI}");
+
+    // Bitwise const
+    print("FLAG_ALL = {FLAG_ALL}");
+
+    // Boolean const
+    print("Debug mode: {DEBUG_MODE}");
+    print("Is wide: {IS_WIDE}");
+
+    print("");
+    print("=== Const in Expressions ===");
+
+    // Const used in regular expressions
+    var x = SCREEN_WIDTH / 2;
+    var y = SCREEN_HEIGHT / 2;
+    print("Center: ({x}, {y})");
+
+    // Const in loop bounds
+    const LOOP_COUNT = 5;
+    for (i=0:LOOP_COUNT) {
+        print("  i = {i}");
+    }
+
+    print("");
+    print("=== Negative and Unary ===");
+    const NEG_ONE = -1;
+    const NOT_FLAG = ~FLAG_READ;
+    print("NEG_ONE = {NEG_ONE}");
+    print("~FLAG_READ = {NOT_FLAG}");
+
+    print("");
+    print("=== Const Arrays ===");
+    print("First prime: {PRIMES[0]}");
+    print("Last color:  {COLORS[2]}");
+    print("FIB[7] = {FIB[7]}");
+
+    print("Done!");
+}

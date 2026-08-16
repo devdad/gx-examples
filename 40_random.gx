@@ -1,0 +1,84 @@
+// 40_random.gx
+//
+// The random module: integers, floats, bools, and a seed you control. Same
+// seed, same sequence, which is what you want for anything reproducible.
+// The noise module adds simplex noise in one to four dimensions plus fBm,
+// enough to print a small terrain map straight to the terminal.
+
+import random.random
+import random.noise
+
+fn main() {
+    // --- Random numbers ---
+    print("=== Random (default seed) ===\n")
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+    print("  rand_range(10,20): ") print("{rand_range(10, 20)}") print("\n")
+    print("  rand_f32():        ") print("{rand_f32()}") print("\n")
+    print("  rand_bool():       ")
+    if (rand_bool()) { print("true\n") } else { print("false\n") }
+
+    // --- Seeded (deterministic) ---
+    print("\n=== Seeded (42) ===\n")
+    seed(42)
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+
+    // Same seed = same sequence
+    print("\n=== Seeded (42) again ===\n")
+    seed(42)
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+    print("  rand_int(100):     ") print("{rand_int(100)}") print("\n")
+
+    // --- Float range ---
+    print("\n=== Float range ===\n")
+    seed(123)
+    var i:i32 = 0
+    while (i < 5) {
+        var v:f32 = rand_f32_range(-1.0, 1.0)
+        print("  rand_f32_range(-1,1): ") print("{v}") print("\n")
+        i = i + 1
+    }
+
+    // --- Simplex noise ---
+    print("\n=== Simplex Noise ===\n")
+    print("  simplex1(0.5):           ") print("{simplex1(0.5)}") print("\n")
+    print("  simplex1(1.0):           ") print("{simplex1(1.0)}") print("\n")
+    print("  simplex1(1.5):           ") print("{simplex1(1.5)}") print("\n")
+
+    print("  simplex2(0.5, 0.5):      ") print("{simplex2(0.5, 0.5)}") print("\n")
+    print("  simplex2(1.0, 2.0):      ") print("{simplex2(1.0, 2.0)}") print("\n")
+
+    print("  simplex3(0.5, 0.5, 0.5): ") print("{simplex3(0.5, 0.5, 0.5)}") print("\n")
+    print("  simplex4(1,2,3,4):       ") print("{simplex4(1.0, 2.0, 3.0, 4.0)}") print("\n")
+
+    // --- fBm ---
+    print("\n=== Fractal Brownian Motion ===\n")
+    print("  fbm2(0.5, 0.5, 4, 2.0, 0.5): ") print("{fbm2(0.5, 0.5, 4, 2.0, 0.5)}") print("\n")
+    print("  fbm3(1, 2, 3, 6, 2.0, 0.5):  ") print("{fbm3(1.0, 2.0, 3.0, 6, 2.0, 0.5)}") print("\n")
+
+    // --- 2D noise map (ASCII) ---
+    // Quantize n to an integer (n * 100 truncated) before binning so
+    // tiny float-rounding differences between TCC-compiled and
+    // clang-compiled simplex don't flip a near-boundary cell. The
+    // content of the map is still PRNG-driven; we just compare on the
+    // rounded value.
+    print("\n=== 2D Noise Map (10x5) ===\n")
+    var y:i32 = 0
+    while (y < 5) {
+        var x:i32 = 0
+        while (x < 20) {
+            var n:f32 = simplex2(x * 0.2, y * 0.2)
+            var q:i32 = (i32)(n * 100.0)
+            if (q > 30)       { print("#") }
+            else if (q > 0)   { print("+") }
+            else if (q > -30) { print(".") }
+            else              { print(" ") }
+            x = x + 1
+        }
+        print("\n")
+        y = y + 1
+    }
+
+    print("\n=== Done ===\n")
+}

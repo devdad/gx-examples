@@ -1,0 +1,30 @@
+// 05_arrays.gx
+//
+// Fixed-size arrays, same layout as C arrays. You index them, slice them,
+// and loop over them. The size is part of the type and nothing reallocates.
+
+fn main() {
+    // Fixed-size array with initializer
+    var scores:i32[5] = {95, 82, 74, 88, 91};
+
+    var win:[]i32 = scores[0:3];
+
+    print("Winners:\n");
+    for (var s in win) {
+        print(" win {s}\n");
+    }
+
+    // Array with inferred size
+    var colors:f32[3] = {1.0, 0.0, 0.0};
+    print("\nRGB: {colors[0]}, {colors[1]}, {colors[2]}\n");
+
+    // Modify by index
+    scores[0] = 100;
+    print("\nUpdated first score: {scores[0]}\n");
+
+    // Iterate with range
+    print("\nAll scores after update:\n");
+    for (i = 0:4) {
+        print("  scores[{i}] = {scores[i]}\n");
+    }
+}
