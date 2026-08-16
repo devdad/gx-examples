@@ -9,14 +9,17 @@
 // A word on safety, because I want to be precise about what you get.
 // An index the compiler can prove wrong does not compile at all:
 // scores[9] on a five element array is an error in every build mode,
-// since both the index and the size are sitting right there. For
-// indexes only known at runtime, a default build checks every access
-// and panics with the index and the length instead of reading whatever
-// sits past the array. Build with -O1 or higher and those runtime
-// checks are stripped, so a release build trusts your computed indexes
-// exactly the way C does. GX also has raw pointers, and nothing checks
-// those. Safer to develop in than C, then. Not a memory-safe language,
-// and I will not pretend otherwise.
+// since both the index and the size are sitting right there. Indexes
+// only known at runtime are checked on every access, and going out of
+// range panics with the index and the length instead of reading
+// whatever sits past the array. Those checks stay in at every
+// optimization level. If a profiler shows you a hot loop that cannot
+// afford them, build with --unchecked and the program will trust your
+// indexes the way C does, but that is a flag you type, not something
+// -O2 does behind your back. GX also has raw pointers, and nothing
+// checks those. Not a memory-safe language, and I will not pretend
+// otherwise. But the default is the safe build, and leaving it is
+// always your own explicit decision.
 
 fn main() {
     // Fixed-size array with initializer

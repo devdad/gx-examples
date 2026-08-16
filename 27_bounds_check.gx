@@ -5,9 +5,10 @@
 // arr[10] on a three element array never builds. A slice is different,
 // its length is runtime information, so slice indexing is checked as
 // the program runs. That is what this file shows: it goes out of range
-// through a slice on purpose, so expect it to die at s[10]. Build with
-// -O1 or higher and the runtime checks are gone, release code pays
-// nothing for them.
+// through a slice on purpose, so expect it to die at s[10]. The
+// runtime checks stay in at every -O level. The --unchecked flag
+// strips them, for the rare program that has measured them and cannot
+// afford them.
 
 fn main() {
     // Fixed array bounds check
