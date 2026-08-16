@@ -2,9 +2,18 @@
 //
 // Functions, recursion, and the pointer rules. A pointer parameter is
 // read-only unless you mark it out, so the signature says who can write
-// what. And functions cannot return pointers at all. In C that is how you
-// hand back a dead stack address, so GX removes the option. Return by
-// value or fill an out parameter instead.
+// what.
+//
+// Functions cannot return pointers at all, and I want to explain that
+// decision, because it looks strict until you see what it removes. A
+// returned pointer always carries the same questions in C: who owns
+// this now, who frees it, and how long does it live. Half the time it
+// is a dead stack address before you even get to ask. GX cuts the
+// whole knot: return by value, or write through an out parameter the
+// caller handed you. Either way the memory always belongs to the
+// caller, it is visible at the call site, and the ownership argument
+// never starts. One small rule, a whole class of bugs and confusion
+// gone.
 
 // ============================================================================
 // Part 1: Basic functions
