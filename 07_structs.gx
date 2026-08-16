@@ -1,8 +1,13 @@
 // 07_structs.gx
 //
-// Structs are plain data with C layout. Methods go in an ex block, and they
-// are just functions that see the fields directly. No classes, no
-// inheritance, no vtables.
+// Structs are plain data with C layout, and nothing else lives inside
+// them. Methods go in an ex block, short for extension, and that split
+// is deliberate: the data stays a dumb C struct you can hand to any C
+// library, while the code that works on it lives next door. Inside an
+// ex block the fields are in scope directly, so p.greet() reads like
+// the object style people enjoy writing, without classes, inheritance,
+// or vtables sneaking into the layout. Separate the data from the code,
+// keep the joy of using it.
 
 struct Player {
     id:i32
