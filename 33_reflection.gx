@@ -6,8 +6,13 @@
 // every member, so the language should let you ask while it still
 // knows. Runtime reflection would mean type tables carried in the
 // binary and lookups paid on every use, which is how languages grow
-// invisible weight. This way the walk over a struct happens at build
-// time and ships as zero bytes of type information.
+// invisible weight. This way the walk happens at build time and ships
+// as zero bytes of type information.
+//
+// The payoff is code that cannot drift. color_name below is the
+// enum-to-string function every C codebase maintains by hand in a
+// switch, except here the compiler writes it from the enum itself.
+// Add a member and the function already knows it.
 
 struct Point {
     x: f32
@@ -22,8 +27,18 @@ struct Node {
 
 enum Color { Red  Green  Blue }
 
+// Generated enum-to-name: #for unrolls one comparison per member, and
+// @member drops the name in as a string literal. Plain branches in the
+// output, no table, no maintenance.
+fn color_name:str(c: Color) {
+    #for (i=0:@members(Color)) {
+        if ((i32)c == i) { return "{@member(Color, i)}"; }
+    }
+    return "?";
+}
+
 fn main() {
-    print("=== Compile-Time Reflection (Phase 6) ===\n");
+    print("=== Compile-Time Reflection ===\n");
 
     // --- Struct field reflection ---
     print("Point has {@fields(Point)} fields:\n");
@@ -42,6 +57,11 @@ fn main() {
     #for (i=0:@members(Color)) {
         print("  {@member(Color, i)}");
     }
+
+    // --- The generated function in use ---
+    var picked: Color = Green;
+    print("picked = {color_name(picked)}\n");
+    print("by value = {color_name(Blue)}\n");
 
     // --- Type meta ---
     print("@type_kind(Point) = {@type_kind(Point)}\n");

@@ -55,7 +55,7 @@ enum LogLevel {
 }
 
 fn main() {
-    print("=== Struct/Enum Comptime Expansion (Phase 5) ===");
+    print("=== Struct/Enum Compile-Time Expansion ===");
 
     // PlatformInfo: only access fields that are unconditional.
     var info: PlatformInfo;
