@@ -1,12 +1,27 @@
 // 05_arrays.gx
 //
-// Fixed-size arrays, same layout as C arrays. You index them, slice them,
-// and loop over them. The size is part of the type and nothing reallocates.
+// Fixed-size arrays. The layout is exactly C: five i32s are twenty
+// contiguous bytes, no header, no hidden field. The difference is that
+// the compiler knows the size. It is part of the type, .len hands it to
+// you, and slicing gives a pointer plus length view instead of a bare
+// pointer that forgot how long it is.
+//
+// A word on safety, because I want to be precise about what you get.
+// In a default build every index is checked, and going out of bounds
+// panics with the index and the length instead of reading whatever sits
+// past the array. That catches most array bugs where they happen. Build
+// with -O1 or higher and the checks are stripped, so a release build
+// trusts you exactly the way C does. GX also has raw pointers, and
+// nothing checks those. Safer to develop in than C, then. Not a
+// memory-safe language, and I will not pretend otherwise. You pay for
+// the rails while you build, and ship without them.
 
 fn main() {
     // Fixed-size array with initializer
     var scores:i32[5] = {95, 82, 74, 88, 91};
 
+    // A slice is a view into the array, no copy. Ranges are inclusive,
+    // so 0:3 is four elements.
     var win:[]i32 = scores[0:3];
 
     print("Winners:\n");
@@ -14,7 +29,6 @@ fn main() {
         print(" win {s}\n");
     }
 
-    // Array with inferred size
     var colors:f32[3] = {1.0, 0.0, 0.0};
     print("\nRGB: {colors[0]}, {colors[1]}, {colors[2]}\n");
 
@@ -22,9 +36,11 @@ fn main() {
     scores[0] = 100;
     print("\nUpdated first score: {scores[0]}\n");
 
-    // Iterate with range
-    print("\nAll scores after update:\n");
-    for (i = 0:4) {
+    // scores[9] = 0;   // try it: panics with "index 9 out of bounds (len 5)"
+
+    // .len is known at compile time, no sentinel, no separate size variable
+    print("\nAll {scores.len} scores after update:\n");
+    for (i = 0:scores.len-1) {
         print("  scores[{i}] = {scores[i]}\n");
     }
 }
