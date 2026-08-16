@@ -6,6 +6,8 @@ GX is a statically typed, procedural language for people who like knowing what t
 
 The numbering has some gaps and a few doubled numbers. Examples get added and reworked as the language moves, and I would rather keep stable names than renumber everything on each release.
 
+The official home of the language is [gxlang.org](https://gxlang.org/), with docs, downloads, and a playground that runs most of these examples in the browser. GX is in beta, and the beta program is open to anyone who wants in: [gxlang.org/beta](https://gxlang.org/beta/).
+
 ## Running the examples
 
 Get GX from [gxlang.org](https://gxlang.org), unpack it, and put the `gx` binary on your PATH. Then:
