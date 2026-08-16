@@ -1,9 +1,13 @@
 // 30_comptime_fn.gx
 //
-// #fn marks a function the compiler can run while compiling. Call one in
-// a const initializer and the result lands in the binary as a literal,
-// recursion and loops included. It is the same language running earlier,
-// not a separate macro dialect.
+// #fn marks a function the compiler can run while compiling. Call one
+// in a const initializer and the binary holds the result as a literal,
+// recursion and loops included. The decision behind it: magic numbers
+// rot. Without this you compute a mask or an aligned size by hand once,
+// paste the number, and the formula is gone. Here the formula stays in
+// the code where it can be read and changed, the computation costs
+// nothing at runtime, and it is the same language running earlier, not
+// a macro dialect bolted on top.
 
 // Align a size up to the given alignment
 #fn align_up:i32(size:i32, align:i32) {

@@ -1,9 +1,12 @@
 // 29_comptime_if.gx
 //
-// #if is decided during compilation, so the losing branch never reaches
-// the output. Conditions can read built-ins like @os, @debug, and @opt,
-// or your own consts. It covers what you would reach for the C
-// preprocessor for, without a second language on top.
+// #if is decided while compiling, and the losing branch never reaches
+// the output. This is GX's answer to the C preprocessor, and the
+// decision behind it matters: the preprocessor is a second language
+// living on top of the first, one that cannot see types, consts, or
+// scopes, which is exactly how #ifdef soup happens. In GX the condition
+// is a normal expression over your own consts and build facts like @os,
+// @debug, and @opt. One language, deciding earlier.
 
 // Platform detection with @os
 #if (@os == "windows") {

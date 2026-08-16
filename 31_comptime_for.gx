@@ -1,9 +1,12 @@
 // 31_comptime_for.gx
 //
-// #for runs the loop at compile time. Each iteration is stamped out with
-// the index as a literal, so there is no counter and no branch in the
-// output. The nested version below expands to nine plain statements
-// before the C compiler ever sees them.
+// #for runs the loop while compiling and stamps the body out once per
+// iteration, with the index as a literal. No counter, no branch in the
+// output; the nested version below lands as nine plain statements
+// before the backend ever sees them. In C this job goes to X-macros or
+// an external codegen script, both of which hide what the output
+// actually is. GX's position is that generating repetitive code is a
+// job for the language itself, written in the language itself.
 
 fn main() {
     // Basic #for - unrolls to 5 print calls

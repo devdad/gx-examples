@@ -1,9 +1,13 @@
 // 33_reflection.gx
 //
-// Compile-time reflection. @fields, @field, @field_type and friends answer
-// questions about your types while the compiler still has them in hand.
-// Paired with #for, that is enough to walk a struct's fields or an enum's
-// members with zero runtime type information in the binary.
+// Compile-time reflection. @fields, @field, @field_type and friends
+// answer questions about your types, and #for turns the answers into
+// code. The decision here: the compiler already knows every field and
+// every member, so the language should let you ask while it still
+// knows. Runtime reflection would mean type tables carried in the
+// binary and lookups paid on every use, which is how languages grow
+// invisible weight. This way the walk over a struct happens at build
+// time and ships as zero bytes of type information.
 
 struct Point {
     x: f32

@@ -1,10 +1,14 @@
 // 32_struct_comptime.gx
 //
-// #if and #for work inside struct and enum bodies too. PlatformInfo gets
-// different fields per OS, Pixel gets four generated channels, and LogLevel
-// only carries Debug and Trace in debug builds. The expansion happens
-// before the resolver runs, so the rest of the compiler just sees an
-// ordinary struct. What you write conditionally is what the machine gets.
+// #if and #for work inside struct and enum bodies too. PlatformInfo
+// gets different fields per OS, Pixel gets four generated channels,
+// LogLevel carries Debug and Trace only in debug builds. The reasoning:
+// data has a platform shape as often as code does, and in C that means
+// preprocessor blocks in the middle of declarations, which every tool
+// that reads your code then has to understand. Here it is the same #if
+// you use everywhere, aimed at the data. The expansion runs before the
+// resolver, so the rest of the compiler sees an ordinary struct and
+// the binary gets an ordinary C layout.
 
 // Struct with conditional fields based on platform.
 //
