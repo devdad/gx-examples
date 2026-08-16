@@ -1,8 +1,26 @@
 // 35_templates.gx
 //
-// #type T declares a type parameter. Each use like Pair<i32> stamps out a
-// separate concrete struct at compile time, so the generated code is the
-// plain C you would have written by hand. No boxing, no vtables.
+// #type T declares a type parameter. Every concrete use like Pair<i32>
+// stamps out a real struct at compile time, so the C output holds
+// struct Pair_i32 with two int32_t fields, exactly what you would have
+// written by hand. That mechanism, substitution and nothing else, is
+// the whole feature, and the restraint is deliberate.
+//
+// C++ went the other way. Its templates grew into a second language,
+// with specialization, overload resolution games, and error messages
+// measured in pages, and most of that machinery exists to smuggle
+// computation into the type system. GX already has a compile-time
+// language, the # system, so templates do not need to be one. When you
+// want logic at compile time you write #if, #fn, or #for. #type only
+// fills in types.
+//
+// What that buys you: generics with zero runtime cost, no boxing and
+// no vtables. Every instance is an ordinary named C struct, so it can
+// cross the C boundary like anything else, and you can open the
+// generated C and read what you got. T is unconstrained, so code that
+// does not fit the type fails at the use that stamped it, the same
+// trade C++ lived with before concepts. I keep it because it keeps
+// the feature small.
 
 #type T
 struct Pair {
@@ -11,7 +29,7 @@ struct Pair {
 }
 
 fn main() {
-    print("=== Compile-Time Templates (Phase 8) ===");
+    print("=== Compile-Time Templates ===");
 
     // Pair<i32> - generates struct Pair_i32 { int32_t first; int32_t second; }
     var pi: Pair<i32>;
@@ -30,15 +48,16 @@ fn main() {
     pf.second = 200.32;
     print("Pair<f32>: ({pf.first.str()}, {pf.second.str()})");
 
+    // Non-scalar type arguments work the same way.
     var ps: Pair<str>;
     ps.first = "Afan";
     ps.second = "Olovcic";
-    print("Pair<f32>: ({ps.first.str()}, {ps.second.str()})");
+    print("Pair<str>: ({ps.first.str()}, {ps.second.str()})");
     {
         var ps:Pair< str >;
         ps.first = "Sanela";
         ps.second = "Gluhovic";
-        print("Pair<f32>: ({ps.first.str()}, {ps.second.str()})");
+        print("Pair<str>: ({ps.first.str()}, {ps.second.str()})");
     }
     print("Done!");
 }
