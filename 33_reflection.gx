@@ -47,7 +47,7 @@ fn main() {
     }
 
     // --- Field detail intrinsics ---
-    print("Node has {@fields(Node)} fields:");
+    print("Node has {@fields(Node)} fields:\n");
     #for (i=0:@fields(Node)) {
         print("  {@field(Node, i)}: ptr={@field_is_ptr(Node, i)}\n");
     }
@@ -55,7 +55,7 @@ fn main() {
     // --- Enum member reflection ---
     print("Color has {@members(Color)} members:\n");
     #for (i=0:@members(Color)) {
-        print("  {@member(Color, i)}");
+        print("  {@member(Color, i)}\n");
     }
 
     // --- The generated function in use ---
