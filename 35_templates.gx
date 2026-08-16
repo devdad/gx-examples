@@ -29,35 +29,42 @@ struct Pair {
 }
 
 fn main() {
-    print("=== Compile-Time Templates ===");
+    print("=== Compile-Time Templates ===
+");
 
     // Pair<i32> - generates struct Pair_i32 { int32_t first; int32_t second; }
     var pi: Pair<i32>;
     pi.first = 10;
     pi.second = 20;
-    print("Pair<i32>: ({pi.first.str()}, {pi.second.str()})");
+    print("Pair<i32>: ({pi.first.str()}, {pi.second.str()})
+");
 
     // Pair<i64> - generates struct Pair_i64 { int64_t first; int64_t second; }
     var pl: Pair<i64>;
     pl.first = 100;
     pl.second = 200;
-    print("Pair<i64>: ({pl.first.str()}, {pl.second.str()})");
+    print("Pair<i64>: ({pl.first.str()}, {pl.second.str()})
+");
 
     var pf: Pair<f32>;
     pf.first = 100.32;
     pf.second = 200.32;
-    print("Pair<f32>: ({pf.first.str()}, {pf.second.str()})");
+    print("Pair<f32>: ({pf.first.str()}, {pf.second.str()})
+");
 
     // Non-scalar type arguments work the same way.
     var ps: Pair<str>;
     ps.first = "Afan";
     ps.second = "Olovcic";
-    print("Pair<str>: ({ps.first.str()}, {ps.second.str()})");
+    print("Pair<str>: ({ps.first.str()}, {ps.second.str()})
+");
     {
         var ps:Pair< str >;
         ps.first = "Sanela";
         ps.second = "Gluhovic";
-        print("Pair<str>: ({ps.first.str()}, {ps.second.str()})");
+        print("Pair<str>: ({ps.first.str()}, {ps.second.str()})
+");
     }
-    print("Done!");
+    print("Done!
+");
 }
