@@ -2,9 +2,12 @@
 //
 // A slice is a view into an array, pointer plus length, nothing copied.
 // Arrays carry .len and convert to slices at function boundaries on their
-// own. One thing to get right: slice ranges are inclusive on both ends,
-// matching the loop convention for (i = a:b), so arr[1:4] is indices 1
-// through 4, four elements.
+// own. A slice is also what to reach for where C would use a pointer and
+// a count: same job, but the length travels with the data and indexing
+// is checked. One thing to get right: slice ranges are inclusive on both
+// ends, matching the loop convention for (i = a:b), so arr[1:4] is
+// indices 1 through 4, four elements. And remember a slice is a view, it
+// owns nothing, so it must not outlive the memory it looks into.
 
 fn sum:i32(data: []i32) {
     var total: i32 = 0;

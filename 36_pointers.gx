@@ -1,9 +1,21 @@
 // 36_pointers.gx
 //
 // Pointers here are C pointers, and they behave like it. Take an address,
-// dereference, add an offset, subtract two of them, index. The arithmetic
-// stays inside a real array, because stepping past one object's storage is
-// undefined behavior in GX exactly as it is in C.
+// dereference, add an offset, subtract two of them, index. None of it is
+// checked. The arithmetic in this file stays inside a real array, because
+// stepping past one object's storage is undefined behavior in GX exactly
+// as it is in C.
+//
+// Honest advice: this is the least safe corner of the language, and you
+// need it less often than you think. Pointers are in GX because GX
+// speaks the C ABI and C libraries hand you pointers all day. Use them
+// at that boundary, and for handing out a single value to be written
+// through. The moment you are walking a run of elements, take a slice
+// instead. It knows its length, indexing it is checked, and it costs
+// the same. Odin went as far as dropping pointer arithmetic from the
+// language and leaning on slices. GX keeps it for the C boundary, but
+// pointer arithmetic in everyday GX code usually means a slice was the
+// right tool.
 
 fn main() {
     print("=== Pointer Arithmetic ===");
