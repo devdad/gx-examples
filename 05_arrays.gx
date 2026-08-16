@@ -7,14 +7,16 @@
 // pointer that forgot how long it is.
 //
 // A word on safety, because I want to be precise about what you get.
-// In a default build every index is checked, and going out of bounds
-// panics with the index and the length instead of reading whatever sits
-// past the array. That catches most array bugs where they happen. Build
-// with -O1 or higher and the checks are stripped, so a release build
-// trusts you exactly the way C does. GX also has raw pointers, and
-// nothing checks those. Safer to develop in than C, then. Not a
-// memory-safe language, and I will not pretend otherwise. You pay for
-// the rails while you build, and ship without them.
+// An index the compiler can prove wrong does not compile at all:
+// scores[9] on a five element array is an error in every build mode,
+// since both the index and the size are sitting right there. For
+// indexes only known at runtime, a default build checks every access
+// and panics with the index and the length instead of reading whatever
+// sits past the array. Build with -O1 or higher and those runtime
+// checks are stripped, so a release build trusts your computed indexes
+// exactly the way C does. GX also has raw pointers, and nothing checks
+// those. Safer to develop in than C, then. Not a memory-safe language,
+// and I will not pretend otherwise.
 
 fn main() {
     // Fixed-size array with initializer
@@ -36,7 +38,7 @@ fn main() {
     scores[0] = 100;
     print("\nUpdated first score: {scores[0]}\n");
 
-    // scores[9] = 0;   // try it: panics with "index 9 out of bounds (len 5)"
+    // scores[9] = 0;   // try it: does not compile, index 9 out of bounds (len 5)
 
     // .len is known at compile time, no sentinel, no separate size variable
     print("\nAll {scores.len} scores after update:\n");

@@ -1,10 +1,13 @@
 // 27_bounds_check.gx
 //
-// Array and slice indexing is bounds-checked in debug builds, the
-// default. Go out of range and the program panics instead of quietly
-// corrupting memory. This file does it on purpose, so expect it to die
-// at s[10]. Build with -O1 or higher and the checks are gone, release
-// code pays nothing for them.
+// Bounds checking happens as early as the compiler can manage. A
+// constant index into a fixed-size array is rejected at compile time,
+// arr[10] on a three element array never builds. A slice is different,
+// its length is runtime information, so slice indexing is checked as
+// the program runs. That is what this file shows: it goes out of range
+// through a slice on purpose, so expect it to die at s[10]. Build with
+// -O1 or higher and the runtime checks are gone, release code pays
+// nothing for them.
 
 fn main() {
     // Fixed array bounds check
