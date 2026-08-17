@@ -43,4 +43,10 @@ The `demos` folder holds small complete programs, games and graphics, built on s
 gx demos/sokol/snake.gx -o snake
 ```
 
+Most demos declare `@backend("llvm")` or `@backend("llvm-clang")` in their source, which asks for an optimized build and needs clang on your machine. If you do not have clang, nothing is lost: the command line wins over the directive, and every demo also builds with the zero-dependency TCC that ships in the GX bundle:
+
+```
+gx demos/sokol/snake.gx --backend c -o snake
+```
+
 The `*_web.gx` files are browser builds of the same demos. GX has a JS backend, so the playground on gxlang.org runs these without installing anything.
