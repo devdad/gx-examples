@@ -22,6 +22,13 @@
 // trade C++ lived with before concepts. I keep it because it keeps
 // the feature small.
 
+// The smallest possible template: one type parameter, one field. Box<i32>
+// becomes struct Box_i32 { int32_t value; }, nothing more.
+#type T
+struct Box {
+    value: T
+}
+
 #type T
 struct Pair {
     first: T
@@ -30,6 +37,17 @@ struct Pair {
 
 fn main() {
     print("=== Compile-Time Templates ===\n");
+
+    // Box in its simplest form: same code, three concrete structs.
+    var bi: Box<i32>;
+    bi.value = 7;
+    var bf: Box<f32>;
+    bf.value = 3.14;
+    var bs: Box<str>;
+    bs.value = "boxed";
+    print("Box<i32>: {bi.value.str()}\n");
+    print("Box<f32>: {bf.value.str()}\n");
+    print("Box<str>: {bs.value.str()}\n");
 
     // Pair<i32> - generates struct Pair_i32 { int32_t first; int32_t second; }
     var pi: Pair<i32>;
