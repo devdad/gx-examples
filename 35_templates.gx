@@ -21,6 +21,13 @@
 // does not fit the type fails at the use that stamped it, the same
 // trade C++ lived with before concepts. I keep it because it keeps
 // the feature small.
+//
+// The same #type works on a function, and there is no angle-bracket
+// call syntax, also on purpose: larger<i32>(a, b) is the classic C++
+// ambiguity with comparison chains, and the parser stays out of that
+// game. You call larger(3, 5), the compiler reads the argument types,
+// stamps larger_i32, and checks it like a function you wrote by hand.
+// Arguments that disagree are told exactly where the inference broke.
 
 // The smallest possible template: one type parameter, one field. Box<i32>
 // becomes struct Box_i32 { int32_t value; }, nothing more.
@@ -33,6 +40,12 @@ struct Box {
 struct Pair {
     first: T
     second: T
+}
+
+#type T
+fn larger:T(a: T, b: T) {
+    if (a > b) { return a }
+    return b
 }
 
 fn main() {
@@ -77,5 +90,12 @@ fn main() {
         ps.second = "Gluhovic";
         print("Pair<str>: ({ps.first.str()}, {ps.second.str()})\n");
     }
+    // Function templates: T comes from the arguments, nothing to spell out.
+    var big:i32 = larger(10, 20);
+    var bigf:f32 = larger(2.5, 1.5);
+    print("larger(10, 20) = {big}\n");
+    print("larger(2.5, 1.5) = {bigf}\n");
+    // larger(3, 2.5)   // does not compile: T is i32 from argument 1, but argument 2 is f32
+
     print("Done!\n");
 }
