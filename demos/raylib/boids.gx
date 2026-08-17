@@ -87,16 +87,17 @@ fn spawn_boid() {
     g_boid_count = g_boid_count + 1
 }
 
-// Clamp a velocity magnitude in-place (via ball index since GX doesn't deref pointers easily)
-fn limit_boid_speed(i: i32, max: f32) {
-    var vx: f32 = g_boids[i].velocity.x
-    var vy: f32 = g_boids[i].velocity.y
+// Clamp a boid's speed in place. The out pointer says this function
+// writes through its argument; the caller passes &g_boids[i].
+fn limit_boid_speed(out b: *Boid, max: f32) {
+    var vx: f32 = b.velocity.x
+    var vy: f32 = b.velocity.y
     var mag_sq: f32 = vx * vx + vy * vy
     var max_sq: f32 = max * max
     if (mag_sq > max_sq) {
         var mag: f32 = sqrtf(mag_sq)
-        g_boids[i].velocity.x = (vx / mag) * max
-        g_boids[i].velocity.y = (vy / mag) * max
+        b.velocity.x = (vx / mag) * max
+        b.velocity.y = (vy / mag) * max
     }
 }
 
@@ -354,7 +355,7 @@ fn main() {
             if (g_boids[i].sprint_timer > 0.0) {
                 speed_cap = MAX_SPEED * 2.0
             }
-            limit_boid_speed(i, speed_cap)
+            limit_boid_speed(&g_boids[i], speed_cap)
 
             // Update position
             g_boids[i].position.x = g_boids[i].position.x + g_boids[i].velocity.x * delta
